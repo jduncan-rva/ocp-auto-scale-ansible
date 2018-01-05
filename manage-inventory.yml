@@ -1,0 +1,84 @@
+---
+- hosts: localhost
+  gather_facts: false
+  vars:
+    inventory_file: hosts.test
+    tower_api_url: https://192.168.122.120/api/v2
+    hostname: 192.168.122.108
+    inventory_id: 5
+    new_host_parameters: openshift_schedulable=true
+
+
+
+  tasks:
+  - name: create new_nodes inventory group
+    uri:
+      url: "{{ tower_api_url }}/groups/"
+      method: POST
+      user: admin
+      password: redhat
+      validate_certs: no
+      status_code: 201
+      body_format: json
+      body: "{'name':'new_nodes','inventory':'{{ inventory_id }}'}"
+    tags:
+      - provision_3_1
+
+  - name: update inventory with new host
+    uri:
+      url: "{{ tower_api_url }}/hosts/"
+      method: POST
+      user: admin
+      password: redhat
+      validate_certs: no
+      status_code: 201
+      body_format: json
+      body: "{'name':'{{ hostname }}','inventory':'{{ inventory_id }}','variables':'{{ new_host_parameters }}'}"
+    tags:
+      - provision_3_1
+
+  - name: add new_nodes to OSEv3:children
+    lineinfile:
+      path: "{{ inventory_file }}"
+      insertafter: '^etcd$'
+      line: 'new_nodes'
+    tags:
+      - provision
+
+  - name: add new_nodes group
+    blockinfile:
+      path: "{{ inventory_file }}"
+      insertafter: EOF
+      block: |
+        [new_nodes]
+        {{ hostname }} {{ new_host_parameters }}
+    tags:
+      - provision
+
+  - name: clean up new_nodes group
+    blockinfile:
+      path: "{{ inventory_file }}"
+      state: absent
+      insertafter: EOF
+      block: |
+        [new_nodes]
+        {{ hostname }} {{ new_host_parameters }}
+    tags:
+     - cleanup
+
+  - name: clean up new_nodes inventory
+    lineinfile:
+      path: "{{ inventory_file }}"
+      state: absent
+      insertafter: '^etcd$'
+      line: 'new_nodes'
+    tags:
+      - cleanup
+
+  - name: move host to regular nodes group
+    lineinfile:
+      path: "{{ inventory_file }}"
+      insertafter: '^\[nodes\]'
+      line: "{{ hostname }} {{ new_host_parameters }}"
+    tags:
+      - cleanup
