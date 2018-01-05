@@ -1,0 +1,1 @@
+# ocp-auto-scale-ansible
