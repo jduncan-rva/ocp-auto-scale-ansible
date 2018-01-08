@@ -3,7 +3,6 @@ nodes
 nfs
 masters
 etcd
-new_nodes
 
 [OSEv3:vars]
 openshift_master_cluster_public_hostname=None
@@ -21,6 +20,7 @@ openshift_disable_check=disk_availability,memory_availability,docker_storage
 openshift_disable_check=disk_availability,memory_availability,docker_storage
 
 [nodes]
+192.168.122.108 openshift_schedulable=true
 192.168.122.100  openshift_public_ip=192.168.122.100 openshift_ip=192.168.122.100 openshift_public_hostname=ocp1.192.168.122.100.nip.io openshift_hostname=ocp1.192.168.122.100.nip.io connect_to=192.168.122.100 openshift_schedulable=False ansible_connection=local
 192.168.122.101  openshift_public_ip=192.168.122.101 openshift_ip=192.168.122.101 openshift_public_hostname=ocp2.192.168.122.101.nip.io openshift_hostname=ocp2.192.168.122.101.nip.io connect_to=192.168.122.101 openshift_node_labels="{'region': 'infra'}" openshift_schedulable=True
 
@@ -33,7 +33,3 @@ openshift_disable_check=disk_availability,memory_availability,docker_storage
 [etcd]
 192.168.122.100  openshift_public_ip=192.168.122.100 openshift_ip=192.168.122.100 openshift_public_hostname=ocp1.192.168.122.100.nip.io openshift_hostname=ocp1.192.168.122.100.nip.io connect_to=192.168.122.100 ansible_connection=local
 
-# BEGIN ANSIBLE MANAGED BLOCK
-[new_nodes]
-192.168.122.108 openshift_schedulable=true
-# END ANSIBLE MANAGED BLOCK
