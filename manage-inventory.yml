@@ -2,13 +2,13 @@
 - hosts: localhost
   gather_facts: false
   vars:
-    inventory_file: hosts.test
+    git_checkout_path: /tmp/ocp-auto
+    inventory_file: "{{ git_checkout_path }}/hosts"
+    project_repo: https://github.com/jduncan-rva/ocp-auto-scale-ansible.git
     tower_api_url: https://192.168.122.120/api/v2
     hostname: 192.168.122.108
-    inventory_id: 5
+    inventory_id: 6
     new_host_parameters: openshift_schedulable=true
-
-
 
   tasks:
   - name: create new_nodes inventory group
@@ -36,6 +36,15 @@
       body: "{'name':'{{ hostname }}','inventory':'{{ inventory_id }}','variables':'{{ new_host_parameters }}'}"
     tags:
       - provision_3_1
+
+  - name: check out repository
+    git:
+      accept_hostkey: yes
+      repo: "{{ project_repo }}"
+      dest: "{{ git_checkout_path }}"
+      force: yes
+    tags:
+      - provision
 
   - name: add new_nodes to OSEv3:children
     lineinfile:
@@ -81,4 +90,12 @@
       insertafter: '^\[nodes\]'
       line: "{{ hostname }} {{ new_host_parameters }}"
     tags:
+      - cleanup
+
+  - name: push updated project repo
+    shell: git push https://{{ github_user }}:{{ github_pass }}@{{ project_repo }} --all -m 'updated by Ansible Tower on $(date +%s)'
+    args:
+      chdir: "{{ git_checkout_path }}"
+    tags:
+      - provision
       - cleanup
