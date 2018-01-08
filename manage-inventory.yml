@@ -47,6 +47,7 @@
       force: yes
     tags:
       - provision
+      - cleanup
 
   - name: add new_nodes to OSEv3:children
     lineinfile:
@@ -72,6 +73,7 @@
       state: absent
       insertafter: EOF
       block: |
+
         [new_nodes]
         {{ hostname }} {{ new_host_parameters }}
     tags:
@@ -95,7 +97,9 @@
       - cleanup
 
   - name: commit changes to repo
-    shell: git add -A && git commit -m 'updated by Ansible at $(date +%s)'
+    shell: git add -A && git commit -m "updated by Ansible at $(date +%Y%m%d%H%M%S)"
+    args:
+      chdir: "{{ git_checkout_path }}"
     tags:
       - provision
       - cleanup
