@@ -1,10 +1,12 @@
 ---
 - hosts: localhost
   gather_facts: false
+  vars_files:
+    - passes.yml
   vars:
     git_checkout_path: /tmp/ocp-auto
     inventory_file: "{{ git_checkout_path }}/hosts"
-    project_repo: https://github.com/jduncan-rva/ocp-auto-scale-ansible.git
+    project_repo: github.com/jduncan-rva/ocp-auto-scale-ansible.git
     tower_api_url: https://192.168.122.120/api/v2
     hostname: 192.168.122.108
     inventory_id: 6
@@ -40,7 +42,7 @@
   - name: check out repository
     git:
       accept_hostkey: yes
-      repo: "{{ project_repo }}"
+      repo: "https://{{ project_repo }}"
       dest: "{{ git_checkout_path }}"
       force: yes
     tags:
@@ -92,10 +94,24 @@
     tags:
       - cleanup
 
+  - name: commit changes to repo
+    shell: git commit -a -m 'updated by Ansible at $(date +%s)'
+    tags:
+      - provision
+      - cleanup
+
   - name: push updated project repo
-    shell: git push https://{{ github_user }}:{{ github_pass }}@{{ project_repo }} --all -m 'updated by Ansible Tower on $(date +%s)'
+    shell: git push https://{{ github_user }}:{{ github_pass }}@{{ project_repo }} --all
     args:
       chdir: "{{ git_checkout_path }}"
+    tags:
+      - provision
+      - cleanup
+
+  - name: remove temporary directory
+    file:
+      name: "{{ git_checkout_path }}"
+      state: absent
     tags:
       - provision
       - cleanup
