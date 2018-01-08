@@ -95,7 +95,7 @@
       - cleanup
 
   - name: commit changes to repo
-    shell: git commit -a -m 'updated by Ansible at $(date +%s)'
+    shell: git add -A && git commit -m 'updated by Ansible at $(date +%s)'
     tags:
       - provision
       - cleanup
