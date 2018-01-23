@@ -8,7 +8,7 @@
     inventory_file: "{{ git_checkout_path }}/hosts"
     project_repo: github.com/jduncan-rva/ocp-auto-scale-ansible.git
     tower_api_url: https://192.168.122.120/api/v2
-    hostname: 192.168.122.108
+    host_ip: 192.168.122.108
     inventory_id: 6
     new_host_parameters: openshift_schedulable=true
 
@@ -35,7 +35,7 @@
       validate_certs: no
       status_code: 201
       body_format: json
-      body: "{'name':'{{ hostname }}','inventory':'{{ inventory_id }}','variables':'{{ new_host_parameters }}'}"
+      body: "{'name':'{{ host_ip }}','inventory':'{{ inventory_id }}','variables':'{{ new_host_parameters }}'}"
     tags:
       - provision_3_1
 
@@ -63,7 +63,7 @@
       insertafter: EOF
       block: |
         [new_nodes]
-        {{ hostname }} {{ new_host_parameters }}
+        {{ host_ip }} {{ new_host_parameters }}
     tags:
       - provision
 
@@ -75,7 +75,7 @@
       block: |
 
         [new_nodes]
-        {{ hostname }} {{ new_host_parameters }}
+        {{ host_ip }} {{ new_host_parameters }}
     tags:
      - cleanup
 
@@ -92,7 +92,7 @@
     lineinfile:
       path: "{{ inventory_file }}"
       insertafter: '^\[nodes\]'
-      line: "{{ hostname }} {{ new_host_parameters }}"
+      line: "{{ host_ip }} {{ new_host_parameters }}"
     tags:
       - cleanup
 
