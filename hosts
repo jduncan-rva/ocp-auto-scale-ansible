@@ -6,23 +6,22 @@ etcd
 
 [OSEv3:vars]
 openshift_master_cluster_public_hostname=None
-openshift_master_default_subdomain=apps.192.168.122.101.nip.io
-ansible_ssh_user=root
+openshift_master_default_subdomain=apps.jduncan.io
+ansible_ssh_user=ec2-user
 openshift_master_cluster_hostname=None
 openshift_override_hostname_check=true
 deployment_type=openshift-enterprise
 
 [nodes]
-192.168.122.108 openshift_schedulable=true
-192.168.122.100  openshift_public_ip=192.168.122.100 openshift_ip=192.168.122.100 openshift_public_hostname=ocp1.192.168.122.100.nip.io openshift_hostname=ocp1.192.168.122.100.nip.io connect_to=192.168.122.100 openshift_schedulable=False ansible_connection=local
-192.168.122.101  openshift_public_ip=192.168.122.101 openshift_ip=192.168.122.101 openshift_public_hostname=ocp2.192.168.122.101.nip.io openshift_hostname=ocp2.192.168.122.101.nip.io connect_to=192.168.122.101 openshift_node_labels="{'region': 'infra'}" openshift_schedulable=True
+192.168.122.157 openshift_public_ip=52.87.254.181 openshift_ip=192.168.122.157 openshift_public_hostname=ec2-52-87-254-181.compute-1.amazonaws.com openshift_hostname=ip-192-168-122-157.ec2.internal connect_to=192.168.122.157 ansible_connection=local
+192.168.122.216 openshift_public_ip=52.86.237.67 openshift_ip=192.168.122.216 openshift_public_hostname=ec2-52-86-237-67.compute-1.amazonaws.com openshift_hostname=ip-192-168-122-216.ec2.internal connect_to=192.168.122.216 openshift_node_labels="{'region': 'infra'}" openshift_schedulable=True
 
 [nfs]
-192.168.122.100  openshift_public_ip=192.168.122.100 openshift_ip=192.168.122.100 openshift_public_hostname=ocp1.192.168.122.100.nip.io openshift_hostname=ocp1.192.168.122.100.nip.io connect_to=192.168.122.100 ansible_connection=local
+192.168.122.157 openshift_public_ip=52.87.254.181 openshift_ip=192.168.122.157 openshift_public_hostname=ec2-52-87-254-181.compute-1.amazonaws.com openshift_hostname=ip-192-168-122-157.ec2.internal connect_to=192.168.122.157 ansible_connection=local
 
 [masters]
-192.168.122.100  openshift_public_ip=192.168.122.100 openshift_ip=192.168.122.100 openshift_public_hostname=ocp1.192.168.122.100.nip.io openshift_hostname=ocp1.192.168.122.100.nip.io connect_to=192.168.122.100 ansible_connection=local
+192.168.122.157 openshift_public_ip=52.87.254.181 openshift_ip=192.168.122.157 openshift_public_hostname=ec2-52-87-254-181.compute-1.amazonaws.com openshift_hostname=ip-192-168-122-157.ec2.internal connect_to=192.168.122.157 ansible_connection=local
 
 [etcd]
-192.168.122.100  openshift_public_ip=192.168.122.100 openshift_ip=192.168.122.100 openshift_public_hostname=ocp1.192.168.122.100.nip.io openshift_hostname=ocp1.192.168.122.100.nip.io connect_to=192.168.122.100 ansible_connection=local
+192.168.122.157 openshift_public_ip=52.87.254.181 openshift_ip=192.168.122.157 openshift_public_hostname=ec2-52-87-254-181.compute-1.amazonaws.com openshift_hostname=ip-192-168-122-157.ec2.internal connect_to=192.168.122.157 ansible_connection=local
 
