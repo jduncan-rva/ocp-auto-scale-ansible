@@ -1,8 +1,5 @@
-{{ openshift_hosted_registry_storage_nfs_directory }}/{{ openshift_hosted_registry_storage_volume_name }} {{ openshift_hosted_registry_storage_nfs_options }}
-{{ openshift_metrics_storage_nfs_directory }}/{{ openshift_metrics_storage_volume_name }} {{ openshift_metrics_storage_nfs_options }}
-{{ openshift_logging_storage_nfs_directory }}/{{ openshift_logging_storage_volume_name }} {{ openshift_logging_storage_nfs_options }}
-{{ openshift_loggingops_storage_nfs_directory }}/{{ openshift_loggingops_storage_volume_name }} {{ openshift_loggingops_storage_nfs_options }}
-{{ openshift_hosted_etcd_storage_nfs_directory }}/{{ openshift_hosted_etcd_storage_volume_name }} {{ openshift_hosted_etcd_storage_nfs_options }}
-{{ openshift_prometheus_storage_nfs_directory }}/{{ openshift_prometheus_storage_volume_name }} {{ openshift_prometheus_storage_nfs_options }}
-{{ openshift_prometheus_alertmanager_storage_nfs_directory }}/{{ openshift_prometheus_alertmanager_storage_volume_name }} {{ openshift_prometheus_alertmanager_storage_nfs_options }}
-{{ openshift_prometheus_alertbuffer_storage_nfs_directory }}/{{ openshift_prometheus_alertbuffer_storage_volume_name }} {{ openshift_prometheus_alertbuffer_storage_nfs_options }}
+{{ openshift.hosted.registry.storage.nfs.directory }}/{{ openshift.hosted.registry.storage.volume.name }} {{ openshift.hosted.registry.storage.nfs.options }}
+{{ openshift.hosted.metrics.storage.nfs.directory }}/{{ openshift.hosted.metrics.storage.volume.name }} {{ openshift.hosted.metrics.storage.nfs.options }}
+{{ openshift.hosted.logging.storage.nfs.directory }}/{{ openshift.hosted.logging.storage.volume.name }} {{ openshift.hosted.logging.storage.nfs.options }}
+{{ openshift.hosted.loggingops.storage.nfs.directory }}/{{ openshift.hosted.loggingops.storage.volume.name }} {{ openshift.hosted.loggingops.storage.nfs.options }}
+{{ openshift.hosted.etcd.storage.nfs.directory }}/{{ openshift.hosted.etcd.storage.volume.name }} {{ openshift.hosted.etcd.storage.nfs.options }}

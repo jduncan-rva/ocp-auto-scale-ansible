@@ -10,12 +10,6 @@ metadata:
     iconClass: "icon-rails"
 objects:
 - apiVersion: v1
-  kind: Secret
-  metadata:
-    name: "${NAME}-secrets"
-  stringData:
-    pg-password: "${DATABASE_PASSWORD}"
-- apiVersion: v1
   kind: Service
   metadata:
     annotations:
@@ -154,10 +148,7 @@ objects:
               value: "${DATABASE_USER}"
             -
               name: "POSTGRESQL_PASSWORD"
-              valueFrom:
-                secretKeyRef:
-                  name: "${NAME}-secrets"
-                  key: "pg-password"
+              value: "${DATABASE_PASSWORD}"
             -
               name: "POSTGRESQL_DATABASE"
               value: "${DATABASE_NAME}"
@@ -354,10 +345,7 @@ objects:
                 value: "${DATABASE_USER}"
               -
                 name: "POSTGRESQL_PASSWORD"
-                valueFrom:
-                  secretKeyRef:
-                    name: "${NAME}-secrets"
-                    key: "pg-password"
+                value: "${DATABASE_PASSWORD}"
               -
                 name: "POSTGRESQL_DATABASE"
                 value: "${DATABASE_NAME}"
@@ -398,8 +386,7 @@ parameters:
     displayName: "PostgreSQL Password"
     required: true
     description: "Password for the PostgreSQL user."
-    from: "[a-zA-Z0-9]{8}"
-    generate: expression
+    value: "smartvm"
   -
     name: "DATABASE_NAME"
     required: true

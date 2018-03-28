@@ -14,7 +14,6 @@ def main():
             debug=dict(default=False, type='bool'),
             namespace=dict(default='default', type='str'),
             name=dict(default=None, type='str'),
-            annotations=dict(default=None, type='dict'),
             labels=dict(default=None, type='dict'),
             selector=dict(default=None, type='dict'),
             clusterip=dict(default=None, type='str'),

@@ -15,16 +15,14 @@ class PackageAvailability(NotContainerizedMixin, OpenShiftCheck):
         return super(PackageAvailability, self).is_active() and self.get_var("ansible_pkg_mgr") == "yum"
 
     def run(self):
-        rpm_prefix = self.get_var("openshift_service_type")
-        if self._templar is not None:
-            rpm_prefix = self._templar.template(rpm_prefix)
+        rpm_prefix = self.get_var("openshift", "common", "service_type")
         group_names = self.get_var("group_names", default=[])
 
         packages = set()
 
-        if "oo_masters_to_config" in group_names:
+        if "masters" in group_names:
             packages.update(self.master_packages(rpm_prefix))
-        if "oo_nodes_to_config" in group_names:
+        if "nodes" in group_names:
             packages.update(self.node_packages(rpm_prefix))
 
         args = {"packages": sorted(set(packages))}

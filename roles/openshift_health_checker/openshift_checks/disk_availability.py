@@ -16,31 +16,31 @@ class DiskAvailability(OpenShiftCheck):
     # https://docs.openshift.org/latest/install_config/install/prerequisites.html#system-requirements
     recommended_disk_space_bytes = {
         '/var': {
-            'oo_masters_to_config': 40 * 10**9,
-            'oo_nodes_to_config': 15 * 10**9,
-            'oo_etcd_to_config': 20 * 10**9,
+            'masters': 40 * 10**9,
+            'nodes': 15 * 10**9,
+            'etcd': 20 * 10**9,
         },
         # Used to copy client binaries into,
         # see roles/openshift_cli/library/openshift_container_binary_sync.py.
         '/usr/local/bin': {
-            'oo_masters_to_config': 1 * 10**9,
-            'oo_nodes_to_config': 1 * 10**9,
-            'oo_etcd_to_config': 1 * 10**9,
+            'masters': 1 * 10**9,
+            'nodes': 1 * 10**9,
+            'etcd': 1 * 10**9,
         },
         # Used as temporary storage in several cases.
         tempfile.gettempdir(): {
-            'oo_masters_to_config': 1 * 10**9,
-            'oo_nodes_to_config': 1 * 10**9,
-            'oo_etcd_to_config': 1 * 10**9,
+            'masters': 1 * 10**9,
+            'nodes': 1 * 10**9,
+            'etcd': 1 * 10**9,
         },
     }
 
     # recommended disk space for each location under an upgrade context
     recommended_disk_upgrade_bytes = {
         '/var': {
-            'oo_masters_to_config': 10 * 10**9,
-            'oo_nodes_to_config': 5 * 10 ** 9,
-            'oo_etcd_to_config': 5 * 10 ** 9,
+            'masters': 10 * 10**9,
+            'nodes': 5 * 10 ** 9,
+            'etcd': 5 * 10 ** 9,
         },
     }
 
@@ -62,18 +62,14 @@ class DiskAvailability(OpenShiftCheck):
             number = float(user_config)
             user_config = {
                 '/var': {
-                    'oo_masters_to_config': number,
-                    'oo_nodes_to_config': number,
-                    'oo_etcd_to_config': number,
+                    'masters': number,
+                    'nodes': number,
+                    'etcd': number,
                 },
             }
         except TypeError:
             # If it is not a number, then it should be a nested dict.
             pass
-
-        self.register_log("recommended thresholds", self.recommended_disk_space_bytes)
-        if user_config:
-            self.register_log("user-configured thresholds", user_config)
 
         # TODO: as suggested in
         # https://github.com/openshift/openshift-ansible/pull/4436#discussion_r122180021,
@@ -118,7 +114,10 @@ class DiskAvailability(OpenShiftCheck):
                             'in your Ansible inventory, and lower the recommended disk space availability\n'
                             'if necessary for this upgrade.').format(config_bytes)
 
-                self.register_failure(msg)
+                return {
+                    'failed': True,
+                    'msg': msg,
+                }
 
         return {}
 

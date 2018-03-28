@@ -1,7 +1,11 @@
 ---
 - name: Remove Service Catalog APIServer
   command: >
-    {{ openshift_client_binary }} --config=/etc/origin/master/admin.kubeconfig delete apiservices.apiregistration.k8s.io/v1beta1.servicecatalog.k8s.io --ignore-not-found -n kube-service-catalog
+    oc delete apiservices.apiregistration.k8s.io/v1alpha1.servicecatalog.k8s.io --ignore-not-found -n kube-service-catalog
+
+- name: Remove Policy Binding
+  command: >
+    oc delete policybindings/kube-system:default -n kube-system --ignore-not-found
 
 # TODO: this module doesn't currently remove this
 #- name: Remove service catalog api service
@@ -9,7 +13,7 @@
 #    state: absent
 #    namespace: "kube-service-catalog"
 #    kind: apiservices.apiregistration.k8s.io
-#    name: v1beta1.servicecatalog.k8s.io
+#    name: v1alpha1.servicecatalog.k8s.io
 
 - name: Remove Service Catalog API Server route
   oc_obj:
@@ -45,26 +49,6 @@
     namespace: "kube-service-catalog"
     kind: deployment
     name: controller-manager
-
-- name: Remove Service Catalog kube-system Role Bindinds
-  shell: >
-    {{ openshift_client_binary }} --config=/etc/origin/master/admin.kubeconfig process kube-system-service-catalog-role-bindings -n kube-system | {{ openshift_client_binary }} --config=/etc/origin/master/admin.kubeconfig delete --ignore-not-found -f -
-
-- oc_obj:
-    kind: template
-    name: "kube-system-service-catalog-role-bindings"
-    namespace: kube-system
-    state: absent
-
-- name: Remove Service Catalog kube-service-catalog Role Bindinds
-  shell: >
-    {{ openshift_client_binary }} --config=/etc/origin/master/admin.kubeconfig process service-catalog-role-bindings -n kube-service-catalog | {{ openshift_client_binary }} --config=/etc/origin/master/admin.kubeconfig delete --ignore-not-found -f -
-
-- oc_obj:
-    kind: template
-    name: "service-catalog-role-bindings"
-    namespace: kube-service-catalog
-    state: absent
 
 - name: Remove Service Catalog namespace
   oc_project:

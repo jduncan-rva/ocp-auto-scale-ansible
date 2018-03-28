@@ -87,43 +87,6 @@ def map_from_pairs(source, delim="="):
     return dict(item.split(delim) for item in source.split(","))
 
 
-def serviceaccount_name(qualified_sa):
-    ''' Returns the simple name from a fully qualified name '''
-    return qualified_sa.split(":")[-1]
-
-
-def serviceaccount_namespace(qualified_sa, default=None):
-    ''' Returns the namespace from a fully qualified name '''
-    seg = qualified_sa.split(":")
-    if len(seg) > 1:
-        return seg[-2]
-    if default:
-        return default
-    return seg[-1]
-
-
-def flatten_dict(data, parent_key=None):
-    """ This filter plugin will flatten a dict and its sublists into a single dict
-    """
-    if not isinstance(data, dict):
-        raise RuntimeError("flatten_dict failed, expects to flatten a dict")
-
-    merged = dict()
-
-    for key in data:
-        if parent_key is not None:
-            insert_key = '.'.join((parent_key, key))
-        else:
-            insert_key = key
-
-        if isinstance(data[key], dict):
-            merged.update(flatten_dict(data[key], insert_key))
-        else:
-            merged[insert_key] = data[key]
-
-    return merged
-
-
 # pylint: disable=too-few-public-methods
 class FilterModule(object):
     ''' OpenShift Logging Filters '''
@@ -137,8 +100,5 @@ class FilterModule(object):
             'map_from_pairs': map_from_pairs,
             'min_cpu': min_cpu,
             'es_storage': es_storage,
-            'serviceaccount_name': serviceaccount_name,
-            'serviceaccount_namespace': serviceaccount_namespace,
-            'walk': walk,
-            "flatten_dict": flatten_dict
+            'walk': walk
         }

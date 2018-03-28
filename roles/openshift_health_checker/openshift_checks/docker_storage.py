@@ -14,7 +14,7 @@ class DockerStorage(DockerHostMixin, OpenShiftCheck):
     """
 
     name = "docker_storage"
-    tags = ["health", "preflight"]
+    tags = ["pre-install", "health", "preflight"]
 
     dependencies = ["python-docker-py"]
     storage_drivers = ["devicemapper", "overlay", "overlay2"]

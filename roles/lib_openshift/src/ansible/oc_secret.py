@@ -15,7 +15,6 @@ def main():
             debug=dict(default=False, type='bool'),
             namespace=dict(default='default', type='str'),
             name=dict(default=None, type='str'),
-            annotations=dict(default=None, type='dict'),
             type=dict(default=None, type='str'),
             files=dict(default=None, type='list'),
             delete_after=dict(default=False, type='bool'),

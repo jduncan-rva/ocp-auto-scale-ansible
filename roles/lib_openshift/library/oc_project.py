@@ -724,7 +724,7 @@ class Yedit(object):  # pragma: no cover
                 yamlfile.yaml_dict = content
 
             if params['key']:
-                rval = yamlfile.get(params['key'])
+                rval = yamlfile.get(params['key']) or {}
 
             return {'changed': False, 'result': rval, 'state': state}
 
@@ -1655,9 +1655,6 @@ class OCProject(OpenShiftCLI):
 
                 # Create it here
                 api_rval = oadm_project.create()
-
-                if api_rval['returncode'] != 0:
-                    return {'failed': True, 'msg': api_rval}
 
                 # return the created object
                 api_rval = oadm_project.get()

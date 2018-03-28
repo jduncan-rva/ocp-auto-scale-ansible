@@ -2,7 +2,7 @@ from openshift_checks.package_update import PackageUpdate
 
 
 def test_package_update():
-    return_value = {}
+    return_value = object()
 
     def execute_module(module_name=None, module_args=None, *_):
         assert module_name == 'check_yum_update'

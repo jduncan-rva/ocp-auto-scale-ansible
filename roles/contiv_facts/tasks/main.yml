@@ -1,4 +1,19 @@
 ---
+- name: Determine if Atomic
+  stat: path=/run/ostree-booted
+  register: s
+  changed_when: false
+  check_mode: no
+
+- name: Init the is_atomic fact
+  set_fact:
+    is_atomic: false
+
+- name: Set the is_atomic fact
+  set_fact:
+    is_atomic: true
+  when: s.stat.exists
+
 - name: Determine if CoreOS
   raw: "grep '^NAME=' /etc/os-release | sed s'/NAME=//'"
   register: distro
@@ -66,8 +81,8 @@
     has_iptables: false
 
 # collect information about what packages are installed
-- include_tasks: rpm.yml
+- include: rpm.yml
   when: has_rpm
 
-- include_tasks: fedora-install.yml
-  when: not openshift_is_atomic and ansible_distribution == "Fedora"
+- include: fedora-install.yml
+  when: not is_atomic and ansible_distribution == "Fedora"

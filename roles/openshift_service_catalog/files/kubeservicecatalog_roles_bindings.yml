@@ -1,26 +1,25 @@
 apiVersion: v1
 kind: Template
 metadata:
-  name: service-catalog-role-bindings
+  name: service-catalog
 objects:
 
-- apiVersion: authorization.openshift.io/v1
-  kind: ClusterRole
+- kind: ClusterRole
+  apiVersion: v1
   metadata:
     name: servicecatalog-serviceclass-viewer
   rules:
   - apiGroups:
     - servicecatalog.k8s.io
     resources:
-    - clusterserviceclasses
-    - clusterserviceplans
+    - serviceclasses
     verbs:
     - list
     - watch
     - get
 
-- apiVersion: authorization.openshift.io/v1
-  kind: ClusterRoleBinding
+- kind: ClusterRoleBinding
+  apiVersion: v1
   metadata:
     name: servicecatalog-serviceclass-viewer-binding
   roleRef:
@@ -38,8 +37,8 @@ objects:
   metadata:
     name: service-catalog-apiserver
 
-- apiVersion: authorization.openshift.io/v1
-  kind: ClusterRole
+- kind: ClusterRole
+  apiVersion: v1
   metadata:
     name: sar-creator
   rules:
@@ -50,19 +49,17 @@ objects:
     verbs:
     - create
 
-- apiVersion: authorization.openshift.io/v1
-  kind: ClusterRoleBinding
+- kind: ClusterRoleBinding
+  apiVersion: v1
   metadata:
     name: service-catalog-sar-creator-binding
   roleRef:
     name: sar-creator
-  subjects:
-  - kind: ServiceAccount
-    name: service-catalog-apiserver
-    namespace: kube-service-catalog
+  userNames:
+    - system:serviceaccount:kube-service-catalog:service-catalog-apiserver
 
-- apiVersion: authorization.openshift.io/v1
-  kind: ClusterRole
+- kind: ClusterRole
+  apiVersion: v1
   metadata:
     name: namespace-viewer
   rules:
@@ -75,30 +72,26 @@ objects:
     - watch
     - get
 
-- apiVersion: authorization.openshift.io/v1
-  kind: ClusterRoleBinding
+- kind: ClusterRoleBinding
+  apiVersion: v1
   metadata:
     name: service-catalog-namespace-viewer-binding
   roleRef:
     name: namespace-viewer
-  subjects:
-  - kind: ServiceAccount
-    name: service-catalog-apiserver
-    namespace: kube-service-catalog
+  userNames:
+    - system:serviceaccount:kube-service-catalog:service-catalog-apiserver
 
-- apiVersion: authorization.openshift.io/v1
-  kind: ClusterRoleBinding
+- kind: ClusterRoleBinding
+  apiVersion: v1
   metadata:
     name: service-catalog-controller-namespace-viewer-binding
   roleRef:
     name: namespace-viewer
-  subjects:
-  - kind: ServiceAccount
-    name: service-catalog-controller
-    namespace: kube-service-catalog
+  userNames:
+    - system:serviceaccount:kube-service-catalog:service-catalog-controller
 
-- apiVersion: authorization.openshift.io/v1
-  kind: ClusterRole
+- kind: ClusterRole
+  apiVersion: v1
   metadata:
     name: service-catalog-controller
   rules:
@@ -109,7 +102,6 @@ objects:
     verbs:
     - create
     - update
-    - patch
     - delete
     - get
     - list
@@ -117,24 +109,19 @@ objects:
   - apiGroups:
     - servicecatalog.k8s.io
     resources:
-    - clusterservicebrokers/status
-    - clusterserviceclasses/status
-    - clusterserviceplans/status
-    - serviceinstances/status
-    - servicebindings/status
-    - servicebindings/finalizers
-    - serviceinstances/reference
+    - brokers/status
+    - instances/status
+    - bindings/status
     verbs:
     - update
   - apiGroups:
     - servicecatalog.k8s.io
     resources:
-    - clusterservicebrokers
-    - serviceinstances
-    - servicebindings
+    - brokers
+    - instances
+    - bindings
     verbs:
     - list
-    - get
     - watch
   - apiGroups:
     - ""
@@ -146,8 +133,7 @@ objects:
   - apiGroups:
     - servicecatalog.k8s.io
     resources:
-    - clusterserviceclasses
-    - clusterserviceplans
+    - serviceclasses
     verbs:
     - create
     - delete
@@ -168,19 +154,17 @@ objects:
     - list
     - watch
 
-- apiVersion: authorization.openshift.io/v1
-  kind: ClusterRoleBinding
+- kind: ClusterRoleBinding
+  apiVersion: v1
   metadata:
     name: service-catalog-controller-binding
   roleRef:
     name: service-catalog-controller
-  subjects:
-  - kind: ServiceAccount
-    name: service-catalog-controller
-    namespace: kube-service-catalog
-  
-- apiVersion: authorization.openshift.io/v1
-  kind: Role
+  userNames:
+    - system:serviceaccount:kube-service-catalog:service-catalog-controller
+
+- kind: Role
+  apiVersion: v1
   metadata:
     name: endpoint-accessor
   rules:
@@ -195,25 +179,21 @@ objects:
     - create
     - update
 
-- apiVersion: authorization.openshift.io/v1
-  kind: RoleBinding
+- kind: RoleBinding
+  apiVersion: v1
   metadata:
-    name: endpointer-accessor-binding
+    name: endpoint-accessor-binding
   roleRef:
     name: endpoint-accessor
     namespace: kube-service-catalog
-  subjects:
-  - kind: ServiceAccount
-    namespace: kube-service-catalog
-    name: service-catalog-controller
+  userNames:
+    - system:serviceaccount:kube-service-catalog:service-catalog-controller
 
-- apiVersion: authorization.openshift.io/v1
-  kind: ClusterRoleBinding
+- kind: ClusterRoleBinding
+  apiVersion: v1
   metadata:
     name: system:auth-delegator-binding
   roleRef:
     name: system:auth-delegator
-  subjects:
-  - kind: ServiceAccount
-    name: service-catalog-apiserver
-    namespace: kube-service-catalog
+  userNames:
+    - system:serviceaccount:kube-service-catalog:service-catalog-apiserver

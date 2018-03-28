@@ -17,11 +17,9 @@
 
 - name: Lookup latest containerized version if no version specified
   command: >
-    docker run --rm {{ openshift_cli_image }}:latest version
+    docker run --rm {{ openshift.common.cli_image }}:latest version
   register: cli_image_version
-  when:
-  - openshift_version is not defined
-  - not openshift_use_crio_only
+  when: openshift_version is not defined
 
 # Origin latest = pre-release version (i.e. v1.3.0-alpha.1-321-gb095e3a)
 - set_fact:
@@ -30,7 +28,6 @@
   - openshift_version is not defined
   - openshift.common.deployment_type == 'origin'
   - cli_image_version.stdout_lines[0].split('-') | length > 1
-  - not openshift_use_crio_only
 
 - set_fact:
     openshift_version: "{{ cli_image_version.stdout_lines[0].split(' ')[1].split('-')[0][1:] }}"
@@ -40,26 +37,20 @@
 # and use that value instead.
 - name: Set precise containerized version to configure if openshift_release specified
   command: >
-    docker run --rm {{ openshift_cli_image }}:v{{ openshift_version }} version
+    docker run --rm {{ openshift.common.cli_image }}:v{{ openshift_version }} version
   register: cli_image_version
   when:
   - openshift_version is defined
   - openshift_version.split('.') | length == 2
-  - not openshift_use_crio_only
 
 - set_fact:
     openshift_version: "{{ cli_image_version.stdout_lines[0].split(' ')[1].split('-')[0:2][1:] | join('-') if openshift.common.deployment_type == 'origin' else cli_image_version.stdout_lines[0].split(' ')[1].split('-')[0][1:] }}"
   when:
   - openshift_version is defined
   - openshift_version.split('.') | length == 2
-  - not openshift_use_crio_only
-
-# TODO: figure out a way to check for the openshift_version when using CRI-O.
-# We should do that using the images in the ostree storage so we don't have
-# to pull them again.
 
 # We finally have the specific version. Now we clean up any strange
 # dangly +c0mm1t-offset tags in the version. See also,
 # openshift_facts.py
 - set_fact:
-    openshift_version: "{{ openshift_version | lib_utils_oo_chomp_commit_offset }}"
+    openshift_version: "{{ openshift_version | oo_chomp_commit_offset }}"

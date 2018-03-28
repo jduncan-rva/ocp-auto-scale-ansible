@@ -27,6 +27,8 @@ Role Variables
 Dependencies
 ------------
 
+openshift_facts
+
 Example Playbook
 ----------------
 

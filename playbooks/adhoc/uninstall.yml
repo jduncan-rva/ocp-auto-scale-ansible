@@ -1,5 +1,5 @@
-# This deletes *ALL* Origin and OpenShift Enterprise content installed by
-# ansible.  This includes:
+# This deletes *ALL* Origin, Atomic Enterprise Platform and OpenShift
+# Enterprise content installed by ansible.  This includes:
 #
 #    configuration
 #    containers
@@ -18,8 +18,9 @@
 
   # Since we're not calling openshift_facts we'll do this for now
   - set_fact:
-      openshift_is_atomic: "{{ ostree_output.rc == 0 }}"
-      openshift_is_containerized: "{{ ostree_output.rc == 0 or containerized | default(false) | bool }}"
+      is_atomic: "{{ ostree_output.rc == 0 }}"
+  - set_fact:
+      is_containerized: "{{ is_atomic or containerized | default(false) | bool }}"
 
 # Stop services on all hosts prior to removing files.
 - hosts: nodes
@@ -34,12 +35,15 @@
     - /etc/dnsmasq.d/origin-upstream-dns.conf
     - /etc/dnsmasq.d/openshift-ansible.conf
     - /etc/NetworkManager/dispatcher.d/99-origin-dns.sh
+    when: openshift_use_dnsmasq | default(true) | bool
   - service:
       name: NetworkManager
       state: restarted
+    when: openshift_use_dnsmasq | default(true) | bool
   - name: Stop services
     service: name={{ item }} state=stopped
     with_items:
+    - atomic-enterprise-node
     - atomic-openshift-node
     - openshift-node
     - openvswitch
@@ -52,6 +56,7 @@
   - name: Stop services
     service: name={{ item }} state=stopped
     with_items:
+    - atomic-enterprise-master
     - atomic-openshift-master
     - atomic-openshift-master-api
     - atomic-openshift-master-controllers
@@ -61,6 +66,7 @@
     - origin-master
     - origin-master-api
     - origin-master-controllers
+    - pcsd
     failed_when: false
 
 - hosts: etcd
@@ -100,6 +106,9 @@
       - name: Remove packages
         package: name={{ item }} state=absent
         with_items:
+        - atomic-enterprise
+        - atomic-enterprise-node
+        - atomic-enterprise-sdn-ovs
         - atomic-openshift
         - atomic-openshift-clients
         - atomic-openshift-excluder
@@ -122,17 +131,15 @@
         - origin-clients
         - origin-node
         - origin-sdn-ovs
+        - tuned-profiles-atomic-enterprise-node
         - tuned-profiles-atomic-openshift-node
+        - tuned-profiles-openshift-node
         - tuned-profiles-origin-node
-        register: result
-        until: result is succeeded
 
       - name: Remove flannel package
         package: name=flannel state=absent
         when: openshift_use_flannel | default(false) | bool
-        register: result
-        until: result is succeeded
-      when: not openshift_is_atomic | bool
+      when: not is_atomic | bool
 
     - shell: systemctl reset-failed
       changed_when: False
@@ -153,14 +160,6 @@
       - lbr0
       - vlinuxbr
       - vovsbr
-
-    - name: Remove virtual devices
-      command: nmcli delete device "{{ item }}"
-      failed_when: False
-      with_items:
-      - tun0
-      - docker0
-
     when: openshift_remove_all | default(true) | bool
 
   - shell: atomic uninstall "{{ item }}"-master-api
@@ -168,6 +167,7 @@
     failed_when: False
     with_items:
     - openshift-enterprise
+    - atomic-enterprise
     - origin
 
   - shell: atomic uninstall "{{ item }}"-master-controllers
@@ -175,6 +175,7 @@
     failed_when: False
     with_items:
     - openshift-enterprise
+    - atomic-enterprise
     - origin
 
   - shell: atomic uninstall "{{ item }}"-master
@@ -182,6 +183,7 @@
     failed_when: False
     with_items:
     - openshift-enterprise
+    - atomic-enterprise
     - origin
 
   - shell: atomic uninstall "{{ item }}"-node
@@ -189,6 +191,7 @@
     failed_when: False
     with_items:
     - openshift-enterprise
+    - atomic-enterprise
     - origin
 
   - shell: atomic uninstall "{{ item }}"
@@ -201,11 +204,18 @@
   - shell: find /var/lib/origin/openshift.local.volumes -type d -exec umount {} \; 2>/dev/null || true
     changed_when: False
 
+  - shell: find /var/lib/atomic-enterprise/openshift.local.volumes -type d -exec umount {} \; 2>/dev/null || true
+    changed_when: False
+
+  - shell: find /var/lib/openshift/openshift.local.volumes -type d -exec umount {} \; 2>/dev/null || true
+    changed_when: False
+
   - shell: docker rm -f "{{ item }}"-master "{{ item }}"-node
     changed_when: False
     failed_when: False
     with_items:
     - openshift-enterprise
+    - atomic-enterprise
     - origin
 
   - shell: docker ps -a | grep Exited | egrep "{{ item }}" | awk '{print $1}'
@@ -213,6 +223,9 @@
     failed_when: False
     register: exited_containers_to_delete
     with_items:
+    - aep3.*/aep
+    - aep3.*/node
+    - aep3.*/openvswitch
     - openshift3/ose
     - openshift3/node
     - openshift3/openvswitch
@@ -231,6 +244,7 @@
         register: images_to_delete
         with_items:
         - registry\.access\..*redhat\.com/openshift3
+        - registry\.access\..*redhat\.com/aep3
         - registry\.qe\.openshift\.com/.*
         - registry\.access\..*redhat\.com/rhel7/etcd
         - docker.io/openshift
@@ -274,30 +288,14 @@
     - "{{ directories.results | default([]) }}"
     - files
 
-  - shell: systemctl daemon-reload
-    changed_when: False
-
-  - name: restart container-engine
-    service: name=container-engine state=stopped enabled=no
-    failed_when: false
-    register: container_engine
-
-  - name: restart docker
-    service: name=docker state=stopped enabled=no
-    failed_when: false
-    when: not (container_engine is changed)
-    register: l_docker_restart_docker_in_pb_result
-    until: not (l_docker_restart_docker_in_pb_result is failed)
-    retries: 3
-    delay: 30
-
   - name: Remove remaining files
     file: path={{ item }} state=absent
     with_items:
     - /etc/ansible/facts.d/openshift.fact
+    - /etc/atomic-enterprise
     - /etc/openshift
     - /etc/openshift-sdn
-    - /etc/pki/ca-trust/source/anchors/openshift-ca.crt
+    - /etc/sysconfig/atomic-enterprise-node
     - /etc/sysconfig/atomic-openshift-node
     - /etc/sysconfig/atomic-openshift-node-dep
     - /etc/sysconfig/openshift-node-dep
@@ -312,38 +310,25 @@
     - /etc/systemd/system/origin-node-dep.service
     - /etc/systemd/system/origin-node.service
     - /etc/systemd/system/origin-node.service.wants
-    - /var/lib/docker
+    - /var/lib/atomic-enterprise
+    - /var/lib/openshift
 
-  - name: Rebuild ca-trust
-    command: update-ca-trust
+  - shell: systemctl daemon-reload
+    changed_when: False
 
-  - name: Reset Docker proxy configuration
-    lineinfile:
-      state=absent
-      dest=/etc/sysconfig/docker
-      regexp='(NO_PROXY|HTTP_PROXY|HTTPS_PROXY)=.*'
-
-  - name: Reset Docker registry configuration
-    lineinfile:
-      state=absent
-      dest=/etc/sysconfig/docker
-      regexp='(ADD_REGISTRY|BLOCK_REGISTRY|INSECURE_REGISTRY)=.*'
-
-  - name: Detect Docker storage configuration
-    shell: vgs -o name | grep docker
-    register: docker_vg_name
+  - name: restart container-engine
+    service: name=container-engine state=restarted
     failed_when: false
-    changed_when: false
+    register: container_engine
 
-  - name: Wipe out Docker storage contents
-    command: vgremove -f {{ item }}
-    with_items: "{{ docker_vg_name.stdout_lines }}"
-    when: docker_vg_name.rc == 0
-
-  - name: Wipe out Docker storage configuration
-    file: path=/etc/sysconfig/docker-storage state=absent
-    when: docker_vg_name.rc == 0
-
+  - name: restart docker
+    service: name=docker state=restarted
+    failed_when: false
+    when: not (container_engine | changed)
+    register: l_docker_restart_docker_in_pb_result
+    until: not l_docker_restart_docker_in_pb_result | failed
+    retries: 3
+    delay: 30
 
 - hosts: masters
   become: yes
@@ -362,8 +347,10 @@
 
   - name: Remove packages
     package: name={{ item }} state=absent
-    when: not openshift_is_atomic | bool and openshift_remove_all | default(True) | bool
+    when: not is_atomic | bool and openshift_remove_all | default(True) | bool
     with_items:
+    - atomic-enterprise
+    - atomic-enterprise-master
     - atomic-openshift
     - atomic-openshift-clients
     - atomic-openshift-excluder
@@ -382,8 +369,8 @@
     - origin-excluder
     - origin-docker-excluder
     - origin-master
-    register: result
-    until: result is succeeded
+    - pacemaker
+    - pcs
 
   - shell: systemctl reset-failed
     changed_when: False
@@ -432,6 +419,7 @@
     file: path={{ item }} state=absent
     with_items:
     - /etc/ansible/facts.d/openshift.fact
+    - /etc/atomic-enterprise
     - /etc/corosync
     - /etc/openshift
     - /etc/openshift-sdn
@@ -442,6 +430,9 @@
     - /etc/systemd/system/origin-master-api.service
     - /etc/systemd/system/origin-master-controllers.service
     - /etc/systemd/system/openvswitch.service
+    - /etc/sysconfig/atomic-enterprise-master
+    - /etc/sysconfig/atomic-enterprise-master-api
+    - /etc/sysconfig/atomic-enterprise-master-controllers
     - /etc/sysconfig/atomic-openshift-master-api
     - /etc/sysconfig/atomic-openshift-master-controllers
     - /etc/sysconfig/origin-master
@@ -452,6 +443,10 @@
     - /etc/sysconfig/origin-master-api
     - /etc/sysconfig/origin-master-controllers
     - /usr/share/openshift/examples
+    - /var/lib/atomic-enterprise
+    - /var/lib/openshift
+    - /var/lib/pacemaker
+    - /var/lib/pcsd
     - /usr/lib/systemd/system/atomic-openshift-master-api.service
     - /usr/lib/systemd/system/atomic-openshift-master-controllers.service
     - /usr/lib/systemd/system/origin-master-api.service
@@ -486,19 +481,17 @@
 
   - name: Stop additional atomic services
     service: name={{ item }} state=stopped
-    when: openshift_is_containerized | bool
+    when: is_containerized | bool
     with_items:
     - etcd_container
     failed_when: false
 
   - name: Remove packages
     package: name={{ item }} state=absent
-    when: not openshift_is_atomic | bool and openshift_remove_all | default(True) | bool
+    when: not is_atomic | bool and openshift_remove_all | default(True) | bool
     with_items:
     - etcd
     - etcd3
-    register: result
-    until: result is succeeded
 
   - shell: systemctl reset-failed
     changed_when: False
@@ -553,11 +546,9 @@
 
   - name: Remove packages
     package: name={{ item }} state=absent
-    when: not openshift_is_atomic | bool and openshift_remove_all | default(True) | bool
+    when: not is_atomic | bool and openshift_remove_all | default(True) | bool
     with_items:
     - haproxy
-    register: result
-    until: result is succeeded
 
   - shell: systemctl reset-failed
     changed_when: False
@@ -570,7 +561,3 @@
     with_items:
     - /etc/ansible/facts.d/openshift.fact
     - /var/lib/haproxy/stats
-    # Here we remove only limits.conf rather than directory, as users may put their files.
-    # - /etc/systemd/system/haproxy.service.d
-    - /etc/systemd/system/haproxy.service.d/limits.conf
-    - /etc/systemd/system/haproxy.service

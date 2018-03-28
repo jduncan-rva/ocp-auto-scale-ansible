@@ -6,6 +6,10 @@ Custom filters for use in openshift-master
 import copy
 import sys
 
+# pylint import-error disabled because pylint cannot find the package
+# when installed in a virtualenv
+from distutils.version import LooseVersion  # pylint: disable=no-name-in-module,import-error
+
 from ansible import errors
 from ansible.parsing.yaml.dumper import AnsibleDumper
 from ansible.plugins.filter.core import to_bool as ansible_bool
@@ -78,8 +82,23 @@ class IdentityProviderBase(object):
         self._allow_additional = True
 
     @staticmethod
-    def validate_idp_list(idp_list):
+    def validate_idp_list(idp_list, openshift_version, deployment_type):
         ''' validates a list of idps '''
+        login_providers = [x.name for x in idp_list if x.login]
+
+        multiple_logins_unsupported = False
+        if len(login_providers) > 1:
+            if deployment_type in ['enterprise', 'online', 'atomic-enterprise', 'openshift-enterprise']:
+                if LooseVersion(openshift_version) < LooseVersion('3.2'):
+                    multiple_logins_unsupported = True
+            if deployment_type in ['origin']:
+                if LooseVersion(openshift_version) < LooseVersion('1.2'):
+                    multiple_logins_unsupported = True
+        if multiple_logins_unsupported:
+            raise errors.AnsibleFilterError("|failed multiple providers are "
+                                            "not allowed for login. login "
+                                            "providers: {0}".format(', '.join(login_providers)))
+
         names = [x.name for x in idp_list]
         if len(set(names)) != len(names):
             raise errors.AnsibleFilterError("|failed more than one provider configured with the same name")
@@ -359,6 +378,11 @@ class OpenIDIdentityProvider(IdentityProviderOauthBase):
         if 'extra_authorize_parameters' in self._idp:
             self._idp['extraAuthorizeParameters'] = self._idp.pop('extra_authorize_parameters')
 
+        if 'extraAuthorizeParameters' in self._idp:
+            if 'include_granted_scopes' in self._idp['extraAuthorizeParameters']:
+                val = ansible_bool(self._idp['extraAuthorizeParameters'].pop('include_granted_scopes'))
+                self._idp['extraAuthorizeParameters']['include_granted_scopes'] = val
+
     def validate(self):
         ''' validate this idp instance '''
         if not isinstance(self.provider['claims'], dict):
@@ -426,12 +450,6 @@ class GoogleIdentityProvider(IdentityProviderOauthBase):
         IdentityProviderOauthBase.__init__(self, api_version, idp)
         self._optional += [['hostedDomain', 'hosted_domain']]
 
-    def validate(self):
-        ''' validate this idp instance '''
-        if self.challenge:
-            raise errors.AnsibleFilterError("|failed provider {0} does not "
-                                            "allow challenge authentication".format(self.__class__.__name__))
-
 
 class GitHubIdentityProvider(IdentityProviderOauthBase):
     """ GitHubIdentityProvider
@@ -450,18 +468,12 @@ class GitHubIdentityProvider(IdentityProviderOauthBase):
         self._optional += [['organizations'],
                            ['teams']]
 
-    def validate(self):
-        ''' validate this idp instance '''
-        if self.challenge:
-            raise errors.AnsibleFilterError("|failed provider {0} does not "
-                                            "allow challenge authentication".format(self.__class__.__name__))
-
 
 class FilterModule(object):
     ''' Custom ansible filters for use by the openshift_master role'''
 
     @staticmethod
-    def translate_idps(idps, api_version):
+    def translate_idps(idps, api_version, openshift_version, deployment_type):
         ''' Translates a list of dictionaries into a valid identityProviders config '''
         idp_list = []
 
@@ -477,12 +489,37 @@ class FilterModule(object):
             idp_inst.set_provider_items()
             idp_list.append(idp_inst)
 
-        IdentityProviderBase.validate_idp_list(idp_list)
+        IdentityProviderBase.validate_idp_list(idp_list, openshift_version, deployment_type)
         return u(yaml.dump([idp.to_dict() for idp in idp_list],
                            allow_unicode=True,
                            default_flow_style=False,
                            width=float("inf"),
                            Dumper=AnsibleDumper))
+
+    @staticmethod
+    def validate_pcs_cluster(data, masters=None):
+        ''' Validates output from "pcs status", ensuring that each master
+            provided is online.
+            Ex: data = ('...',
+                        'PCSD Status:',
+                        'master1.example.com: Online',
+                        'master2.example.com: Online',
+                        'master3.example.com: Online',
+                        '...')
+                masters = ['master1.example.com',
+                           'master2.example.com',
+                           'master3.example.com']
+               returns True
+        '''
+        if not issubclass(type(data), string_types):
+            raise errors.AnsibleFilterError("|failed expects data is a string or unicode")
+        if not issubclass(type(masters), list):
+            raise errors.AnsibleFilterError("|failed expects masters is a list")
+        valid = True
+        for master in masters:
+            if "{0}: Online".format(master) not in data:
+                valid = False
+        return valid
 
     @staticmethod
     def certificates_to_synchronize(hostvars, include_keys=True, include_ca=True):
@@ -493,16 +530,29 @@ class FilterModule(object):
                  'admin.key',
                  'admin.kubeconfig',
                  'master.kubelet-client.crt',
-                 'master.kubelet-client.key',
-                 'master.proxy-client.crt',
-                 'master.proxy-client.key',
-                 'service-signer.crt',
-                 'service-signer.key']
+                 'master.kubelet-client.key']
         if bool(include_ca):
-            certs += ['ca.crt', 'ca.key', 'ca-bundle.crt', 'client-ca-bundle.crt']
+            certs += ['ca.crt', 'ca.key', 'ca-bundle.crt']
         if bool(include_keys):
             certs += ['serviceaccounts.private.key',
                       'serviceaccounts.public.key']
+        if bool(hostvars['openshift']['common']['version_gte_3_1_or_1_1']):
+            certs += ['master.proxy-client.crt',
+                      'master.proxy-client.key']
+        if not bool(hostvars['openshift']['common']['version_gte_3_2_or_1_2']):
+            certs += ['openshift-master.crt',
+                      'openshift-master.key',
+                      'openshift-master.kubeconfig']
+        if bool(hostvars['openshift']['common']['version_gte_3_3_or_1_3']):
+            certs += ['service-signer.crt',
+                      'service-signer.key']
+        if not bool(hostvars['openshift']['common']['version_gte_3_5_or_1_5']):
+            certs += ['openshift-registry.crt',
+                      'openshift-registry.key',
+                      'openshift-registry.kubeconfig',
+                      'openshift-router.crt',
+                      'openshift-router.key',
+                      'openshift-router.kubeconfig']
         return certs
 
     @staticmethod
@@ -528,5 +578,6 @@ class FilterModule(object):
     def filters(self):
         ''' returns a mapping of filters to methods '''
         return {"translate_idps": self.translate_idps,
+                "validate_pcs_cluster": self.validate_pcs_cluster,
                 "certificates_to_synchronize": self.certificates_to_synchronize,
                 "oo_htpasswd_users_from_file": self.oo_htpasswd_users_from_file}

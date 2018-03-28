@@ -5,6 +5,7 @@
     yaml_key: assetConfig.loggingPublicURL
     yaml_value: "https://{{ openshift_logging_kibana_hostname }}"
   notify:
+  - restart master
   - restart master api
   - restart master controllers
   tags:

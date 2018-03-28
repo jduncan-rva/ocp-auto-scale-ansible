@@ -81,9 +81,7 @@ spec:
           readOnly: true
         - name: filebufferstorage
           mountPath: /var/lib/fluentd
-{% if openshift_logging_mux_client_mode is defined and
-     ((openshift_logging_mux_allow_external is defined and openshift_logging_mux_allow_external | bool) or
-      (openshift_logging_use_mux is defined and openshift_logging_use_mux | bool)) %}
+{% if openshift_logging_mux_client_mode is defined %}
         - name: muxcerts
           mountPath: /etc/fluent/muxkeys
           readOnly: true
@@ -111,6 +109,8 @@ spec:
           value: "{{ openshift_logging_fluentd_ops_client_key }}"
         - name: "OPS_CA"
           value: "{{ openshift_logging_fluentd_ops_ca }}"
+        - name: "ES_COPY"
+          value: "false"
         - name: "JOURNAL_SOURCE"
           value: "{{ openshift_logging_fluentd_journal_source | default('') }}"
         - name: "JOURNAL_READ_FROM_HEAD"
@@ -130,85 +130,11 @@ spec:
               containerName: "{{ daemonset_container_name }}"
               resource: limits.memory
         - name: "FILE_BUFFER_LIMIT"
-          value: "{{ openshift_logging_fluentd_file_buffer_limit | default('256Mi') }}"
-{% if openshift_logging_mux_client_mode is defined and
-     ((openshift_logging_mux_allow_external is defined and openshift_logging_mux_allow_external | bool) or
-      (openshift_logging_use_mux is defined and openshift_logging_use_mux | bool)) %}
+          value: "{{ openshift_logging_fluentd_file_buffer_limit | default('1Gi') }}"
+{% if openshift_logging_mux_client_mode is defined %}
         - name: "MUX_CLIENT_MODE"
           value: "{{ openshift_logging_mux_client_mode }}"
 {% endif %}
-{% if openshift_logging_install_eventrouter is defined and openshift_logging_install_eventrouter %}
-        - name: "TRANSFORM_EVENTS"
-          value: "true"
-{% endif %}
-
-{% if openshift_logging_fluentd_remote_syslog is defined and openshift_logging_fluentd_remote_syslog %}
-        - name: USE_REMOTE_SYSLOG
-          value: "true"
-{% endif %}
-
-{% if openshift_logging_fluentd_remote_syslog_host is defined %}
-        - name: REMOTE_SYSLOG_HOST
-          value: "{{ openshift_logging_fluentd_remote_syslog_host }}"
-{% endif %}
-
-{% if openshift_logging_fluentd_remote_syslog_port is defined %}
-        - name: REMOTE_SYSLOG_PORT
-          value: "{{ openshift_logging_fluentd_remote_syslog_port }}"
-{% endif %}
-
-{% if openshift_logging_fluentd_remote_syslog_severity is defined %}
-        - name: REMOTE_SYSLOG_SEVERITY
-          value: "{{ openshift_logging_fluentd_remote_syslog_severity }}"
-{% endif %}
-
-{% if openshift_logging_fluentd_remote_syslog_facility is defined %}
-        - name: REMOTE_SYSLOG_FACILITY
-          value: "{{ openshift_logging_fluentd_remote_syslog_facility }}"
-{% endif %}
-
-{% if openshift_logging_fluentd_remote_syslog_remove_tag_prefix is defined %}
-        - name: REMOTE_SYSLOG_REMOVE_TAG_PREFIX
-          value: "{{ openshift_logging_fluentd_remote_syslog_remove_tag_prefix }}"
-{% endif %}
-
-{% if openshift_logging_fluentd_remote_syslog_tag_key is defined %}
-        - name: REMOTE_SYSLOG_TAG_KEY
-          value: "{{ openshift_logging_fluentd_remote_syslog_tag_key }}"
-{% endif %}
-
-{% if openshift_logging_fluentd_remote_syslog_use_record is defined %}
-        - name: REMOTE_SYSLOG_USE_RECORD
-          value: "{{ openshift_logging_fluentd_remote_syslog_use_record }}"
-{% endif %}
-
-{% if openshift_logging_fluentd_remote_syslog_payload_key is defined %}
-        - name: REMOTE_SYSLOG_PAYLOAD_KEY
-          value: "{{ openshift_logging_fluentd_remote_syslog_payload_key }}"
-{% endif %}
-
-{% if audit_container_engine %}
-        - name: "AUDIT_CONTAINER_ENGINE"
-          value: "{{ audit_container_engine | lower }}"
-{% endif %}
-
-{% if audit_container_engine %}
-        - name: "NODE_NAME"
-          valueFrom:
-            fieldRef:
-              fieldPath: spec.nodeName
-{% endif %}
-
-{% if audit_log_file != '' %}
-        - name: AUDIT_FILE
-          value: "{{ audit_log_file }}"
-{% endif %}
-
-{% if audit_pos_log_file != '' %}
-        - name: AUDIT_POS_FILE
-          value: "{{ audit_pos_log_file }}"
-{% endif %}
-
       volumes:
       - name: runlogjournal
         hostPath:
@@ -237,9 +163,7 @@ spec:
       - name: dockerdaemoncfg
         hostPath:
           path: /etc/docker
-{% if openshift_logging_mux_client_mode is defined and
-     ((openshift_logging_mux_allow_external is defined and openshift_logging_mux_allow_external | bool) or
-      (openshift_logging_use_mux is defined and openshift_logging_use_mux | bool)) %}
+{% if openshift_logging_mux_client_mode is defined %}
       - name: muxcerts
         secret:
           secretName: logging-mux

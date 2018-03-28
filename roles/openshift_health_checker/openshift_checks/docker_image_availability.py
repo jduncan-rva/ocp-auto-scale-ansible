@@ -1,8 +1,6 @@
 """Check that required Docker images are available."""
 
-import re
 from pipes import quote
-from ansible.module_utils import six
 from openshift_checks import OpenShiftCheck
 from openshift_checks.mixins import DockerHostMixin
 
@@ -12,16 +10,12 @@ DEPLOYMENT_IMAGE_INFO = {
     "origin": {
         "namespace": "openshift",
         "name": "origin",
-        "registry_console_prefix": "cockpit/",
-        "registry_console_basename": "kubernetes",
-        "registry_console_default_version": "latest",
+        "registry_console_image": "cockpit/kubernetes",
     },
     "openshift-enterprise": {
         "namespace": "openshift3",
         "name": "ose",
-        "registry_console_prefix": "openshift3/",
-        "registry_console_basename": "registry-console",
-        "registry_console_default_version": "${short_version}",
+        "registry_console_image": "registry.access.redhat.com/openshift3/registry-console",
     },
 }
 
@@ -48,15 +42,15 @@ class DockerImageAvailability(DockerHostMixin, OpenShiftCheck):
 
         self.registries = dict(
             # set of registries that need to be checked insecurely (note: not accounting for CIDR entries)
-            insecure=set(self.ensure_list("openshift_docker_insecure_registries")),
+            insecure=set(list(self.get_var("openshift.docker.insecure_registries", default=[]))),
             # set of registries that should never be queried even if given in the image
-            blocked=set(self.ensure_list("openshift_docker_blocked_registries")),
+            blocked=set(list(self.get_var("openshift.docker.blocked_registries", default=[]))),
         )
 
         # ordered list of registries (according to inventory vars) that docker will try for unscoped images
-        regs = self.ensure_list("openshift_docker_additional_registries")
+        regs = list(self.get_var("openshift.docker.additional_registries", default=[]))
         # currently one of these registries is added whether the user wants it or not.
-        deployment_type = self.get_var("openshift_deployment_type")
+        deployment_type = self.get_var("openshift_deployment_type", default="")
         if deployment_type == "origin" and "docker.io" not in regs:
             regs.append("docker.io")
         elif deployment_type == 'openshift-enterprise' and "registry.access.redhat.com" not in regs:
@@ -153,46 +147,27 @@ class DockerImageAvailability(DockerHostMixin, OpenShiftCheck):
         # template for images that run on top of OpenShift
         image_url = "{}/{}-{}:{}".format(image_info["namespace"], image_info["name"], "${component}", "${version}")
         image_url = self.get_var("oreg_url", default="") or image_url
-        if 'oo_nodes_to_config' in host_groups:
+        if 'nodes' in host_groups:
             for suffix in NODE_IMAGE_SUFFIXES:
                 required.add(image_url.replace("${component}", suffix).replace("${version}", image_tag))
-            if self.get_var("osm_use_cockpit", default=True, convert=bool):
-                required.add(self._registry_console_image(image_tag, image_info))
+            # The registry-console is for some reason not prefixed with ose- like the other components.
+            # Nor is it versioned the same, so just look for latest.
+            # Also a completely different name is used for Origin.
+            required.add(image_info["registry_console_image"])
 
         # images for containerized components
-        if self.get_var("openshift_is_containerized"):
+        if self.get_var("openshift", "common", "is_containerized"):
             components = set()
-            if 'oo_nodes_to_config' in host_groups:
+            if 'nodes' in host_groups:
                 components.update(["node", "openvswitch"])
-            if 'oo_masters_to_config' in host_groups:  # name is "origin" or "ose"
+            if 'masters' in host_groups:  # name is "origin" or "ose"
                 components.add(image_info["name"])
             for component in components:
                 required.add("{}/{}:{}".format(image_info["namespace"], component, image_tag))
-            if 'oo_etcd_to_config' in host_groups:  # special case, note it is the same for origin/enterprise
+            if 'etcd' in host_groups:  # special case, note it is the same for origin/enterprise
                 required.add("registry.access.redhat.com/rhel7/etcd")  # and no image tag
 
         return required
-
-    def _registry_console_image(self, image_tag, image_info):
-        """Returns image with logic to parallel what happens with the registry-console template."""
-        # The registry-console is for some reason not prefixed with ose- like the other components.
-        # Nor is it versioned the same. Also a completely different name is used for Origin.
-        prefix = self.get_var(
-            "openshift_cockpit_deployer_prefix",
-            default=image_info["registry_console_prefix"],
-        )
-        basename = self.get_var(
-            "openshift_cockpit_deployer_basename",
-            default=image_info["registry_console_basename"],
-        )
-
-        # enterprise template just uses v3.6, v3.7, etc
-        match = re.match(r'v\d+\.\d+', image_tag)
-        short_version = match.group() if match else image_tag
-        version = image_info["registry_console_default_version"].replace("${short_version}", short_version)
-        version = self.get_var("openshift_cockpit_deployer_version", default=version)
-
-        return prefix + basename + ':' + version
 
     def local_images(self, images):
         """Filter a list of images and return those available locally."""
@@ -208,17 +183,6 @@ class DockerImageAvailability(DockerHostMixin, OpenShiftCheck):
         """Check if image is already in local docker index."""
         result = self.execute_module("docker_image_facts", {"name": image})
         return bool(result.get("images")) and not result.get("failed")
-
-    def ensure_list(self, registry_param):
-        """Return the task var as a list."""
-        # https://bugzilla.redhat.com/show_bug.cgi?id=1497274
-        # If the result was a string type, place it into a list. We must do this
-        # as using list() on a string will split the string into its characters.
-        # Otherwise cast to a list as was done previously.
-        registry = self.get_var(registry_param, default=[])
-        if not isinstance(registry, six.string_types):
-            return list(registry)
-        return self.normalize(registry)
 
     def available_images(self, images):
         """Search remotely for images. Returns: list of images found."""

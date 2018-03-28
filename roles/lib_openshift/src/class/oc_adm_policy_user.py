@@ -32,36 +32,36 @@ class PolicyUser(OpenShiftCLI):
     ''' Class to handle attaching policies to users '''
 
     def __init__(self,
-                 config,
+                 policy_config,
                  verbose=False):
         ''' Constructor for PolicyUser '''
-        super(PolicyUser, self).__init__(config.namespace, config.kubeconfig, verbose)
-        self.config = config
+        super(PolicyUser, self).__init__(policy_config.namespace, policy_config.kubeconfig, verbose)
+        self.config = policy_config
         self.verbose = verbose
         self._rolebinding = None
         self._scc = None
-        self._cluster_role_bindings = None
-        self._role_bindings = None
+        self._cluster_policy_bindings = None
+        self._policy_bindings = None
 
     @property
-    def rolebindings(self):
-        if self._role_bindings is None:
-            results = self._get('rolebindings', None)
+    def policybindings(self):
+        if self._policy_bindings is None:
+            results = self._get('policybindings', None)
             if results['returncode'] != 0:
-                raise OpenShiftCLIError('Could not retrieve rolebindings')
-            self._role_bindings = results['results'][0]['items']
+                raise OpenShiftCLIError('Could not retrieve policybindings')
+            self._policy_bindings = results['results'][0]['items'][0]
 
-        return self._role_bindings
+        return self._policy_bindings
 
     @property
-    def clusterrolebindings(self):
-        if self._cluster_role_bindings is None:
-            results = self._get('clusterrolebindings', None)
+    def clusterpolicybindings(self):
+        if self._cluster_policy_bindings is None:
+            results = self._get('clusterpolicybindings', None)
             if results['returncode'] != 0:
-                raise OpenShiftCLIError('Could not retrieve clusterrolebindings')
-            self._cluster_role_bindings = results['results'][0]['items']
+                raise OpenShiftCLIError('Could not retrieve clusterpolicybindings')
+            self._cluster_policy_bindings = results['results'][0]['items'][0]
 
-        return self._cluster_role_bindings
+        return self._cluster_policy_bindings
 
     @property
     def role_binding(self):
@@ -99,17 +99,18 @@ class PolicyUser(OpenShiftCLI):
         ''' return whether role_binding exists '''
         bindings = None
         if self.config.config_options['resource_kind']['value'] == 'cluster-role':
-            bindings = self.clusterrolebindings
+            bindings = self.clusterpolicybindings
         else:
-            bindings = self.rolebindings
+            bindings = self.policybindings
 
         if bindings is None:
             return False
 
-        for binding in bindings:
-            if binding['roleRef']['name'] == self.config.config_options['name']['value'] and \
-                    binding['userNames'] is not None and \
-                    self.config.config_options['user']['value'] in binding['userNames']:
+        for binding in bindings['roleBindings']:
+            _rb = binding['roleBinding']
+            if _rb['roleRef']['name'] == self.config.config_options['name']['value'] and \
+                    _rb['userNames'] is not None and \
+                    self.config.config_options['user']['value'] in _rb['userNames']:
                 self.role_binding = binding
                 return True
 
@@ -148,9 +149,6 @@ class PolicyUser(OpenShiftCLI):
                self.config.config_options['name']['value'],
                self.config.config_options['user']['value']]
 
-        if self.config.config_options['role_namespace']['value'] is not None:
-            cmd.extend(['--role-namespace', self.config.config_options['role_namespace']['value']])
-
         return self.openshift_cmd(cmd, oadm=True)
 
     @staticmethod
@@ -171,7 +169,6 @@ class PolicyUser(OpenShiftCLI):
                                     'user': {'value': params['user'], 'include': False},
                                     'resource_kind': {'value': params['resource_kind'], 'include': False},
                                     'name': {'value': params['resource_name'], 'include': False},
-                                    'role_namespace': {'value': params['role_namespace'], 'include': False},
                                    })
 
         policyuser = PolicyUser(nconfig, params['debug'])

@@ -10,15 +10,13 @@ class SecretConfig(object):
                  namespace,
                  kubeconfig,
                  secrets=None,
-                 stype=None,
-                 annotations=None):
+                 stype=None):
         ''' constructor for handling secret options '''
         self.kubeconfig = kubeconfig
         self.name = sname
         self.type = stype
         self.namespace = namespace
         self.secrets = secrets
-        self.annotations = annotations
         self.data = {}
 
         self.create_dict()
@@ -35,8 +33,6 @@ class SecretConfig(object):
         if self.secrets:
             for key, value in self.secrets.items():
                 self.data['data'][key] = value
-        if self.annotations:
-            self.data['metadata']['annotations'] = self.annotations
 
 # pylint: disable=too-many-instance-attributes
 class Secret(Yedit):

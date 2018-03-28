@@ -5,8 +5,8 @@
 #
 # This script should be run from openshift-ansible/roles/openshift_examples
 
-XPAAS_VERSION=ose-v1.4.7
-ORIGIN_VERSION=${1:-v3.7}
+XPAAS_VERSION=ose-v1.4.5
+ORIGIN_VERSION=${1:-v3.6}
 RHAMP_TAG=2.0.0.GA
 EXAMPLES_BASE=$(pwd)/files/examples/${ORIGIN_VERSION}
 find ${EXAMPLES_BASE} -name '*.json' -delete
@@ -38,7 +38,6 @@ find 3scale-amp-openshift-templates-${RHAMP_TAG}/ -name '*.yml' -exec mv {} ${EX
 popd
 
 wget https://raw.githubusercontent.com/redhat-developer/s2i-dotnetcore/master/dotnet_imagestreams.json         -O ${EXAMPLES_BASE}/image-streams/dotnet_imagestreams.json
-wget https://raw.githubusercontent.com/redhat-developer/s2i-dotnetcore/master/dotnet_imagestreams_centos.json         -O ${EXAMPLES_BASE}/image-streams/dotnet_imagestreams_centos.json
 wget https://raw.githubusercontent.com/redhat-developer/s2i-dotnetcore/master/templates/dotnet-example.json           -O ${EXAMPLES_BASE}/quickstart-templates/dotnet-example.json
 wget https://raw.githubusercontent.com/redhat-developer/s2i-dotnetcore/master/templates/dotnet-pgsql-persistent.json    -O ${EXAMPLES_BASE}/quickstart-templates/dotnet-pgsql-persistent.json
 wget https://raw.githubusercontent.com/redhat-developer/s2i-dotnetcore/master/templates/dotnet-runtime-example.json    -O ${EXAMPLES_BASE}/quickstart-templates/dotnet-runtime-example.json

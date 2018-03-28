@@ -6,10 +6,12 @@
   register: mktemp
   changed_when: False
 
-- name: Set default image variables based on openshift_deployment_type
+- include: wire_aggregator.yml
+
+- name: Set default image variables based on deployment_type
   include_vars: "{{ item }}"
   with_first_found:
-    - "{{ openshift_deployment_type }}.yml"
+    - "{{ openshift_deployment_type | default(deployment_type) }}.yml"
     - "default_images.yml"
 
 - name: Set service_catalog image facts
@@ -23,39 +25,37 @@
     name: "kube-service-catalog"
     node_selector: ""
 
-- when: os_sdn_network_plugin_name == 'redhat/openshift-ovs-multitenant'
-  block:
-    - name: Waiting for netnamespace kube-service-catalog to be ready
-      oc_obj:
-        kind: netnamespace
-        name: kube-service-catalog
-        state: list
-      register: get_output
-      until: not get_output.results.stderr is defined
-      retries: 30
-      delay: 1
-      changed_when: false
+- name: Set Service Catalog namespace nodeSelector annotation
+  oc_edit:
+    state: present
+    kind: project
+    name: kube-service-catalog
+    separator: '#'
+    content:
+      metadata#annotations#openshift.io/node-selector: ""
 
-    - name: Make kube-service-catalog project network global
-      command: >
-        {{ openshift_client_binary }} --config=/etc/origin/master/admin.kubeconfig adm pod-network make-projects-global kube-service-catalog
+- name: Make kube-service-catalog project network global
+  command: >
+    oc adm pod-network make-projects-global kube-service-catalog
+  when: os_sdn_network_plugin_name | default('') == 'redhat/openshift-ovs-multitenant'
 
-- include_tasks: generate_certs.yml
+- include: generate_certs.yml
 
 - copy:
     src: kubeservicecatalog_roles_bindings.yml
     dest: "{{ mktemp.stdout }}/kubeservicecatalog_roles_bindings.yml"
 
 - oc_obj:
-    name: service-catalog-role-bindings
+    name: service-catalog
     kind: template
     namespace: "kube-service-catalog"
     files:
       - "{{ mktemp.stdout }}/kubeservicecatalog_roles_bindings.yml"
+    delete_after: yes
 
 - oc_process:
     create: True
-    template_name: service-catalog-role-bindings
+    template_name: service-catalog
     namespace: "kube-service-catalog"
 
 - copy:
@@ -63,15 +63,16 @@
     dest: "{{ mktemp.stdout }}/kubesystem_roles_bindings.yml"
 
 - oc_obj:
-    name: kube-system-service-catalog-role-bindings
+    name: kube-system-service-catalog
     kind: template
     namespace: kube-system
     files:
       - "{{ mktemp.stdout }}/kubesystem_roles_bindings.yml"
+    delete_after: yes
 
 - oc_process:
     create: True
-    template_name: kube-system-service-catalog-role-bindings
+    template_name: kube-system-service-catalog
     namespace: kube-system
 
 - oc_obj:
@@ -83,19 +84,19 @@
 # only do this if we don't already have the updated role info
 - name: Generate apply template for clusterrole/edit
   template:
-    src: sc_admin_edit_role_patching.j2
+    src: sc_role_patching.j2
     dest: "{{ mktemp.stdout }}/edit_sc_patch.yml"
   vars:
     original_content: "{{ edit_yaml.results.results[0] | to_yaml }}"
   when:
-    - not edit_yaml.results.results[0] | lib_utils_oo_contains_rule(['servicecatalog.k8s.io'], ['serviceinstances', 'servicebindings'], ['create', 'update', 'delete', 'get', 'list', 'watch', 'patch']) or not edit_yaml.results.results[0] | lib_utils_oo_contains_rule(['settings.k8s.io'], ['podpresets'], ['create', 'update', 'delete', 'get', 'list', 'watch'])
+    - not edit_yaml.results.results[0] | oo_contains_rule(['servicecatalog.k8s.io'], ['instances', 'bindings'], ['create', 'update', 'delete', 'get', 'list', 'watch']) or not edit_yaml.results.results[0] | oo_contains_rule(['settings.k8s.io'], ['podpresets'], ['create', 'update', 'delete', 'get', 'list', 'watch'])
 
 # only do this if we don't already have the updated role info
 - name: update edit role for service catalog and pod preset access
   command: >
-    {{ openshift_client_binary }} --config=/etc/origin/master/admin.kubeconfig replace -f {{ mktemp.stdout }}/edit_sc_patch.yml
+    oc replace -f {{ mktemp.stdout }}/edit_sc_patch.yml
   when:
-    - not edit_yaml.results.results[0] | lib_utils_oo_contains_rule(['servicecatalog.k8s.io'], ['serviceinstances', 'servicebindings'], ['create', 'update', 'delete', 'get', 'list', 'watch', 'patch']) or not edit_yaml.results.results[0] | lib_utils_oo_contains_rule(['settings.k8s.io'], ['podpresets'], ['create', 'update', 'delete', 'get', 'list', 'watch'])
+    - not edit_yaml.results.results[0] | oo_contains_rule(['servicecatalog.k8s.io'], ['instances', 'bindings'], ['create', 'update', 'delete', 'get', 'list', 'watch']) or not edit_yaml.results.results[0] | oo_contains_rule(['settings.k8s.io'], ['podpresets'], ['create', 'update', 'delete', 'get', 'list', 'watch'])
 
 - oc_obj:
     name: admin
@@ -106,42 +107,28 @@
 # only do this if we don't already have the updated role info
 - name: Generate apply template for clusterrole/admin
   template:
-    src: sc_admin_edit_role_patching.j2
+    src: sc_role_patching.j2
     dest: "{{ mktemp.stdout }}/admin_sc_patch.yml"
   vars:
     original_content: "{{ admin_yaml.results.results[0] | to_yaml }}"
   when:
-    - not admin_yaml.results.results[0] | lib_utils_oo_contains_rule(['servicecatalog.k8s.io'], ['serviceinstances', 'servicebindings'], ['create', 'update', 'delete', 'get', 'list', 'watch', 'patch']) or not admin_yaml.results.results[0] | lib_utils_oo_contains_rule(['settings.k8s.io'], ['podpresets'], ['create', 'update', 'delete', 'get', 'list', 'watch'])
+    - not admin_yaml.results.results[0] | oo_contains_rule(['servicecatalog.k8s.io'], ['instances', 'bindings'], ['create', 'update', 'delete', 'get', 'list', 'watch']) or not admin_yaml.results.results[0] | oo_contains_rule(['settings.k8s.io'], ['podpresets'], ['create', 'update', 'delete', 'get', 'list', 'watch'])
 
 # only do this if we don't already have the updated role info
 - name: update admin role for service catalog and pod preset access
   command: >
-    {{ openshift_client_binary }} --config=/etc/origin/master/admin.kubeconfig replace -f {{ mktemp.stdout }}/admin_sc_patch.yml
+    oc replace -f {{ mktemp.stdout }}/admin_sc_patch.yml
   when:
-    - not admin_yaml.results.results[0] | lib_utils_oo_contains_rule(['servicecatalog.k8s.io'], ['serviceinstances', 'servicebindings'], ['create', 'update', 'delete', 'get', 'list', 'watch', 'patch']) or not admin_yaml.results.results[0] | lib_utils_oo_contains_rule(['settings.k8s.io'], ['podpresets'], ['create', 'update', 'delete', 'get', 'list', 'watch'])
+    - not admin_yaml.results.results[0] | oo_contains_rule(['servicecatalog.k8s.io'], ['instances', 'bindings'], ['create', 'update', 'delete', 'get', 'list', 'watch']) or not admin_yaml.results.results[0] | oo_contains_rule(['settings.k8s.io'], ['podpresets'], ['create', 'update', 'delete', 'get', 'list', 'watch'])
 
-- oc_obj:
-    name: view
-    kind: clusterrole
-    state: list
-  register: view_yaml
+- shell: >
+    oc get policybindings/kube-system:default -n kube-system || echo "not found"
+  register: get_kube_system
+  changed_when: no
 
-# only do this if we don't already have the updated role info
-- name: Generate apply template for clusterrole/view
-  template:
-    src: sc_view_role_patching.j2
-    dest: "{{ mktemp.stdout }}/view_sc_patch.yml"
-  vars:
-    original_content: "{{ view_yaml.results.results[0] | to_yaml }}"
-  when:
-    - not view_yaml.results.results[0] | lib_utils_oo_contains_rule(['servicecatalog.k8s.io'], ['serviceinstances', 'servicebindings'], ['get', 'list', 'watch'])
-
-# only do this if we don't already have the updated role info
-- name: update view role for service catalog access
-  command: >
-    {{ openshift_client_binary }} --config=/etc/origin/master/admin.kubeconfig replace -f {{ mktemp.stdout }}/view_sc_patch.yml
-  when:
-    - not view_yaml.results.results[0] | lib_utils_oo_contains_rule(['servicecatalog.k8s.io'], ['serviceinstances', 'servicebindings'], ['get', 'list', 'watch'])
+- command: >
+    oc create policybinding kube-system -n kube-system
+  when: "'not found' in get_kube_system.stdout"
 
 - oc_adm_policy_user:
     namespace: kube-service-catalog
@@ -252,7 +239,7 @@
     session_affinity: None
     service_type: ClusterIP
 
-- include_tasks: start_api_server.yml
+- include: start_api_server.yml
 
 - name: Delete temp directory
   file:

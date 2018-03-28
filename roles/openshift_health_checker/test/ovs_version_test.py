@@ -10,11 +10,10 @@ def test_openshift_version_not_supported():
     openshift_release = '111.7.0'
 
     task_vars = dict(
-        openshift=dict(common=dict()),
+        openshift=dict(common=dict(service_type='origin')),
         openshift_release=openshift_release,
         openshift_image_tag='v' + openshift_release,
         openshift_deployment_type='origin',
-        openshift_service_type='origin'
     )
 
     with pytest.raises(OpenShiftCheckException) as excinfo:
@@ -28,10 +27,9 @@ def test_invalid_openshift_release_format():
         return {}
 
     task_vars = dict(
-        openshift=dict(common=dict()),
+        openshift=dict(common=dict(service_type='origin')),
         openshift_image_tag='v0',
         openshift_deployment_type='origin',
-        openshift_service_type='origin'
     )
 
     with pytest.raises(OpenShiftCheckException) as excinfo:
@@ -40,21 +38,19 @@ def test_invalid_openshift_release_format():
 
 
 @pytest.mark.parametrize('openshift_release,expected_ovs_version', [
-    ("3.7", ["2.6", "2.7", "2.8"]),
     ("3.5", ["2.6", "2.7"]),
-    ("3.6", ["2.6", "2.7", "2.8"]),
+    ("3.6", ["2.6", "2.7"]),
     ("3.4", "2.4"),
     ("3.3", "2.4"),
     ("1.0", "2.4"),
 ])
 def test_ovs_package_version(openshift_release, expected_ovs_version):
     task_vars = dict(
-        openshift=dict(common=dict()),
+        openshift=dict(common=dict(service_type='origin')),
         openshift_release=openshift_release,
         openshift_image_tag='v' + openshift_release,
-        openshift_service_type='origin'
     )
-    return_value = {}  # note: check.execute_module modifies return hash contents
+    return_value = object()
 
     def execute_module(module_name=None, module_args=None, *_):
         assert module_name == 'rpm_version'
@@ -70,21 +66,21 @@ def test_ovs_package_version(openshift_release, expected_ovs_version):
     assert result is return_value
 
 
-@pytest.mark.parametrize('group_names,openshift_is_containerized,is_active', [
-    (['oo_masters_to_config'], False, True),
+@pytest.mark.parametrize('group_names,is_containerized,is_active', [
+    (['masters'], False, True),
     # ensure check is skipped on containerized installs
-    (['oo_masters_to_config'], True, False),
-    (['oo_nodes_to_config'], False, True),
-    (['oo_masters_to_config', 'oo_nodes_to_config'], False, True),
-    (['oo_masters_to_config', 'oo_etcd_to_config'], False, True),
+    (['masters'], True, False),
+    (['nodes'], False, True),
+    (['masters', 'nodes'], False, True),
+    (['masters', 'etcd'], False, True),
     ([], False, False),
-    (['oo_etcd_to_config'], False, False),
+    (['etcd'], False, False),
     (['lb'], False, False),
     (['nfs'], False, False),
 ])
-def test_ovs_version_skip_when_not_master_nor_node(group_names, openshift_is_containerized, is_active):
+def test_ovs_version_skip_when_not_master_nor_node(group_names, is_containerized, is_active):
     task_vars = dict(
         group_names=group_names,
-        openshift_is_containerized=openshift_is_containerized,
+        openshift=dict(common=dict(is_containerized=is_containerized)),
     )
     assert OvsVersion(None, task_vars).is_active() == is_active

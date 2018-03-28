@@ -1,20 +1,21 @@
 [OSEv3:children]
 masters
 nodes
+etcd
 
 [OSEv3:vars]
 ansible_ssh_user=ec2-user
 ansible_become=true
-openshift_master_default_subdomain=apps.34.224.83.176.nip.io
+openshift_master_default_subdomain=apps.54.89.30.38.nip.io
 openshift_deployment_type=openshift-enterprise
-openshift_disable_check=disk_availability,memory_availability,docker_storage
-openshift_enable_service_catalog=true
-openshift_master_identity_providers=[{'name': 'htpasswd_auth', 'login': 'true', 'challenge': 'true', 'kind': 'HTPasswdPasswordIdentityProvider', 'filename': '/etc/origin/master/htpasswd'}]
+openshift_disable_check=disk_availability,memory_availability,docker_storage,package_availability,package_version
 
 [masters]
-192.168.122.120 openshift_hostname=ip-192-168-122-120.ec2.internal openshift_public_hostname=ec2-34-224-83-176.compute-1.amazonaws.com  openshift_ip=192.168.122.120 openshift_public_ip=34.224.83.176 node=True storage=True master=True openshift_schedulable=False
+192.168.122.120 openshift_hostname=ip-192-168-122-120.ec2.internal openshift_public_hostname=ec2-34-229-55-231.compute-1.amazonaws.com  openshift_ip=192.168.122.120 openshift_public_ip=34.229.55.231 node=True storage=True master=True openshift_schedulable=False
+
+[etcd]
+192.168.122.120 openshift_hostname=ip-192-168-122-120.ec2.internal openshift_public_hostname=ec2-34-229-55-231.compute-1.amazonaws.com  openshift_ip=192.168.122.120 openshift_public_ip=34.229.55.231 node=True storage=True master=True openshift_schedulable=False
 
 [nodes]
-192.168.122.120 openshift_hostname=ip-192-168-122-120.ec2.internal openshift_public_hostname=ec2-34-224-83-176.compute-1.amazonaws.com  openshift_ip=192.168.122.120 openshift_public_ip=34.224.83.176 node=True storage=True master=True openshift_schedulable=False
-192.168.122.15 openshift_hostname=ip-192-168-122-15.ec2.internal openshift_public_hostname=ec2-54-87-253-215.compute-1.amazonaws.com openshift_ip=ec2-54-87-253-215.compute-1.amazonaws.com opensift_public_ip=54.87.253.215 node=True openshift_node_labels="{'region': 'infra'}" openshift_schedulable=True
-
+192.168.122.120 openshift_hostname=ip-192-168-122-120.ec2.internal openshift_public_hostname=ec2-34-229-55-231.compute-1.amazonaws.com  openshift_ip=192.168.122.120 openshift_public_ip=34.229.55.231 node=True storage=True master=True openshift_schedulable=False
+192.168.122.206 openshift_hostname=ip-192-168-122-206.ec2.internal openshift_public_hostname=ec2-54-89-30-38.compute-1.amazonaws.com openshift_ip=ec2-54-89-30-38.compute-1.amazonaws.com opensift_public_ip=54.89.30.38 node=True openshift_node_labels="{'region': 'infra'}" openshift_schedulable=True

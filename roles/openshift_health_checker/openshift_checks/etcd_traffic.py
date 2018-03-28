@@ -12,7 +12,7 @@ class EtcdTraffic(OpenShiftCheck):
     def is_active(self):
         """Skip hosts that do not have etcd in their group names."""
         group_names = self.get_var("group_names", default=[])
-        valid_group_names = "oo_etcd_to_config" in group_names
+        valid_group_names = "etcd" in group_names
 
         version = self.get_major_minor_version(self.get_var("openshift_image_tag"))
         valid_version = version in ((3, 4), (3, 5))
@@ -20,8 +20,8 @@ class EtcdTraffic(OpenShiftCheck):
         return super(EtcdTraffic, self).is_active() and valid_group_names and valid_version
 
     def run(self):
-        openshift_is_containerized = self.get_var("openshift_is_containerized")
-        unit = "etcd_container" if openshift_is_containerized else "etcd"
+        is_containerized = self.get_var("openshift", "common", "is_containerized")
+        unit = "etcd_container" if is_containerized else "etcd"
 
         log_matchers = [{
             "start_regexp": r"Starting Etcd Server",

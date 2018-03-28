@@ -590,7 +590,7 @@ class Yedit(object):
                 yamlfile.yaml_dict = content
 
             if params['key']:
-                rval = yamlfile.get(params['key'])
+                rval = yamlfile.get(params['key']) or {}
 
             return {'changed': False, 'result': rval, 'state': state}
 

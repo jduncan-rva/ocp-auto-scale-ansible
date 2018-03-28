@@ -709,7 +709,7 @@ class Yedit(object):  # pragma: no cover
                 yamlfile.yaml_dict = content
 
             if params['key']:
-                rval = yamlfile.get(params['key'])
+                rval = yamlfile.get(params['key']) or {}
 
             return {'changed': False, 'result': rval, 'state': state}
 
@@ -1670,7 +1670,7 @@ class OCClusterRole(OpenShiftCLI):
             self.clusterrole = ClusterRole(content=result['results'][0])
             result['results'] = self.clusterrole.yaml_dict
 
-        elif '"{}" not found'.format(self.name) in result['stderr']:
+        elif 'clusterrole "{}" not found'.format(self.name) in result['stderr']:
             result['returncode'] = 0
             self.clusterrole = None
 

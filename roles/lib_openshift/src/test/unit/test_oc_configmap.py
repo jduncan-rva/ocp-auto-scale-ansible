@@ -79,7 +79,7 @@ class OCConfigMapTest(unittest.TestCase):
         ''' Testing a configmap create '''
         params = copy.deepcopy(OCConfigMapTest.params)
         params['from_file'] = {'test': '/root/file'}
-        params['from_literal'] = {'foo': 'bar', 'deployment_type': 'openshift-enterprise'}
+        params['from_literal'] = {'foo': 'bar', 'deployment_type': 'online'}
 
         configmap = '''{
                 "apiVersion": "v1",
@@ -100,7 +100,7 @@ class OCConfigMapTest(unittest.TestCase):
                 "apiVersion": "v1",
                 "data": {
                     "foo": "bar",
-                    "deployment_type": "openshift-enterprise",
+                    "deployment_type": "online",
                     "test": "this is a file\\n"
                 },
                 "kind": "ConfigMap",
@@ -128,7 +128,7 @@ class OCConfigMapTest(unittest.TestCase):
 
         self.assertTrue(results['changed'])
         self.assertEqual(results['results']['results'][0]['metadata']['name'], 'configmap')
-        self.assertEqual(results['results']['results'][0]['data']['deployment_type'], 'openshift-enterprise')
+        self.assertEqual(results['results']['results'][0]['data']['deployment_type'], 'online')
 
     @unittest.skipIf(six.PY3, 'py2 test only')
     @mock.patch('os.path.exists')

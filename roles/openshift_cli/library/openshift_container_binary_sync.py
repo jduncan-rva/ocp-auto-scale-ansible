@@ -24,51 +24,23 @@ class BinarySyncError(Exception):
         self.msg = msg
 
 
-# pylint: disable=too-few-public-methods,too-many-instance-attributes
+# pylint: disable=too-few-public-methods
 class BinarySyncer(object):
     """
-    Syncs the openshift, oc, and kubectl binaries/symlinks out of
+    Syncs the openshift, oc, oadm, and kubectl binaries/symlinks out of
     a container onto the host system.
     """
 
-    def __init__(self, module, image, tag, backend):
+    def __init__(self, module, image, tag):
         self.module = module
         self.changed = False
         self.output = []
         self.bin_dir = '/usr/local/bin'
-        self._image = image
+        self.image = image
         self.tag = tag
-        self.backend = backend
         self.temp_dir = None  # TBD
 
     def sync(self):
-        if self.backend == 'atomic':
-            return self._sync_atomic()
-
-        return self._sync_docker()
-
-    def _sync_atomic(self):
-        self.temp_dir = tempfile.mkdtemp()
-        temp_dir_mount = tempfile.mkdtemp()
-        try:
-            image_spec = '%s:%s' % (self.image, self.tag)
-            rc, stdout, stderr = self.module.run_command(['atomic', 'mount',
-                                                          '--storage', "ostree",
-                                                          image_spec, temp_dir_mount])
-            if rc:
-                raise BinarySyncError("Error mounting image. stdout=%s, stderr=%s" %
-                                      (stdout, stderr))
-            for i in ["openshift", "oc"]:
-                src_file = os.path.join(temp_dir_mount, "usr/bin", i)
-                shutil.copy(src_file, self.temp_dir)
-
-            self._sync_binaries()
-        finally:
-            self.module.run_command(['atomic', 'umount', temp_dir_mount])
-            shutil.rmtree(temp_dir_mount)
-            shutil.rmtree(self.temp_dir)
-
-    def _sync_docker(self):
         container_name = "openshift-cli-%s" % random.randint(1, 100000)
         rc, stdout, stderr = self.module.run_command(['docker', 'create', '--name',
                                                       container_name, '%s:%s' % (self.image, self.tag)])
@@ -92,26 +64,20 @@ class BinarySyncer(object):
                 raise BinarySyncError("Error copying file from docker container: stdout=%s, stderr=%s" %
                                       (stdout, stderr))
 
-            self._sync_binaries()
+            self._sync_binary('openshift')
+
+            # In older versions, oc was a symlink to openshift:
+            if os.path.islink(os.path.join(self.temp_dir, 'oc')):
+                self._sync_symlink('oc', 'openshift')
+            else:
+                self._sync_binary('oc')
+
+            # Ensure correct symlinks created:
+            self._sync_symlink('kubectl', 'openshift')
+            self._sync_symlink('oadm', 'openshift')
         finally:
             shutil.rmtree(self.temp_dir)
             self.module.run_command(['docker', 'rm', container_name])
-
-    def _sync_binaries(self):
-        self._sync_binary('openshift')
-
-        # In older versions, oc was a symlink to openshift:
-        if os.path.islink(os.path.join(self.temp_dir, 'oc')):
-            self._sync_symlink('oc', 'openshift')
-        else:
-            self._sync_binary('oc')
-
-        # Ensure correct symlinks created:
-        self._sync_symlink('kubectl', 'openshift')
-
-        # Remove old oadm binary
-        if os.path.exists(os.path.join(self.bin_dir, 'oadm')):
-            os.remove(os.path.join(self.bin_dir, 'oadm'))
 
     def _sync_symlink(self, binary_name, link_to):
         """ Ensure the given binary name exists and links to the expected binary. """
@@ -145,52 +111,20 @@ class BinarySyncer(object):
             self.output.append("Moved %s to %s." % (src_path, dest_path))
             self.changed = True
 
-    @property
-    def raw_image(self):
-        """
-        Returns the image as it was originally passed in to the instance.
-
-        .. note::
-           This image string will only work directly with the atomic command.
-
-        :returns: The original image passed in.
-        :rtype: str
-        """
-        return self._image
-
-    @property
-    def image(self):
-        """
-        Returns the image without atomic prefixes used to map to skopeo args.
-
-        :returns: The image string without prefixes
-        :rtype: str
-        """
-        image = self._image
-        for remove in ('oci:', 'http:', 'https:'):
-            if image.startswith(remove):
-                image = image.replace(remove, '')
-        return image
-
 
 def main():
     module = AnsibleModule(  # noqa: F405
         argument_spec=dict(
             image=dict(required=True),
             tag=dict(required=True),
-            backend=dict(required=True),
         ),
         supports_check_mode=True
     )
 
     image = module.params['image']
     tag = module.params['tag']
-    backend = module.params['backend']
 
-    if backend not in ["docker", "atomic"]:
-        module.fail_json(msg="unknown backend")
-
-    binary_syncer = BinarySyncer(module, image, tag, backend)
+    binary_syncer = BinarySyncer(module, image, tag)
 
     try:
         binary_syncer.sync()

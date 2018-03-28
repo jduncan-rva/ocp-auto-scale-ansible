@@ -16,8 +16,7 @@ class PackageVersion(NotContainerizedMixin, OpenShiftCheck):
     openshift_to_ovs_version = {
         (3, 4): "2.4",
         (3, 5): ["2.6", "2.7"],
-        (3, 6): ["2.6", "2.7", "2.8"],
-        (3, 7): ["2.6", "2.7", "2.8"],
+        (3, 6): ["2.6", "2.7"],
     }
 
     openshift_to_docker_version = {
@@ -37,13 +36,11 @@ class PackageVersion(NotContainerizedMixin, OpenShiftCheck):
     def is_active(self):
         """Skip hosts that do not have package requirements."""
         group_names = self.get_var("group_names", default=[])
-        master_or_node = 'oo_masters_to_config' in group_names or 'oo_nodes_to_config' in group_names
+        master_or_node = 'masters' in group_names or 'nodes' in group_names
         return super(PackageVersion, self).is_active() and master_or_node
 
     def run(self):
-        rpm_prefix = self.get_var("openshift_service_type")
-        if self._templar is not None:
-            rpm_prefix = self._templar.template(rpm_prefix)
+        rpm_prefix = self.get_var("openshift", "common", "service_type")
         openshift_release = self.get_var("openshift_release", default='')
         deployment_type = self.get_var("openshift_deployment_type")
         check_multi_minor_release = deployment_type in ['openshift-enterprise']

@@ -1,11 +1,11 @@
 apiVersion: v1
 kind: Template
 metadata:
-  name: kube-system-service-catalog-role-bindings
+  name: kube-system-service-catalog
 objects:
 
-- apiVersion: authorization.openshift.io/v1
-  kind: Role
+- kind: Role
+  apiVersion: v1
   metadata:
     name: extension-apiserver-authentication-reader
     namespace: ${KUBE_SYSTEM_NAMESPACE}
@@ -19,18 +19,16 @@ objects:
     verbs:
     - get
 
-- apiVersion: authorization.openshift.io/v1
-  kind: RoleBinding
+- kind: RoleBinding
+  apiVersion: v1
   metadata:
     name: extension-apiserver-authentication-reader-binding
     namespace: ${KUBE_SYSTEM_NAMESPACE}
   roleRef:
     name: extension-apiserver-authentication-reader
-    namespace: ${KUBE_SYSTEM_NAMESPACE}
-  subjects:
-  - kind: ServiceAccount
-    name: service-catalog-apiserver
-    namespace: kube-service-catalog
+    namespace: kube-system
+  userNames:
+    - system:serviceaccount:kube-service-catalog:service-catalog-apiserver
 
 parameters:
 - description: Do not change this value.

@@ -759,7 +759,7 @@ class Yedit(object):  # pragma: no cover
                 yamlfile.yaml_dict = content
 
             if params['key']:
-                rval = yamlfile.get(params['key'])
+                rval = yamlfile.get(params['key']) or {}
 
             return {'changed': False, 'result': rval, 'state': state}
 
@@ -1556,7 +1556,20 @@ def main():
             debug=dict(default=False, type='bool'),
             namespace=dict(default='default', type='str'),
             name=dict(default=None, required=True, type='str'),
-            kind=dict(required=True, type='str'),
+            kind=dict(required=True,
+                      type='str',
+                      choices=['dc', 'deploymentconfig',
+                               'rc', 'replicationcontroller',
+                               'svc', 'service',
+                               'scc', 'securitycontextconstraints',
+                               'ns', 'namespace', 'project', 'projects',
+                               'is', 'imagestream',
+                               'istag', 'imagestreamtag',
+                               'bc', 'buildconfig',
+                               'routes',
+                               'node',
+                               'secret',
+                               'pv', 'persistentvolume']),
             file_name=dict(default=None, type='str'),
             file_format=dict(default='yaml', type='str'),
             content=dict(default=None, required=True, type='dict'),

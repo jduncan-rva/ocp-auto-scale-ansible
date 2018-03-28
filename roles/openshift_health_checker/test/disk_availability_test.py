@@ -4,11 +4,11 @@ from openshift_checks.disk_availability import DiskAvailability, OpenShiftCheckE
 
 
 @pytest.mark.parametrize('group_names,is_active', [
-    (['oo_masters_to_config'], True),
-    (['oo_nodes_to_config'], True),
-    (['oo_etcd_to_config'], True),
-    (['oo_masters_to_config', 'oo_nodes_to_config'], True),
-    (['oo_masters_to_config', 'oo_etcd_to_config'], True),
+    (['masters'], True),
+    (['nodes'], True),
+    (['etcd'], True),
+    (['masters', 'nodes'], True),
+    (['masters', 'etcd'], True),
     ([], False),
     (['lb'], False),
     (['nfs'], False),
@@ -39,7 +39,7 @@ def test_is_active(group_names, is_active):
 ])
 def test_cannot_determine_available_disk(desc, ansible_mounts, expect_chunks):
     task_vars = dict(
-        group_names=['oo_masters_to_config'],
+        group_names=['masters'],
         ansible_mounts=ansible_mounts,
     )
 
@@ -52,7 +52,7 @@ def test_cannot_determine_available_disk(desc, ansible_mounts, expect_chunks):
 
 @pytest.mark.parametrize('group_names,configured_min,ansible_mounts', [
     (
-        ['oo_masters_to_config'],
+        ['masters'],
         0,
         [{
             'mount': '/',
@@ -60,7 +60,7 @@ def test_cannot_determine_available_disk(desc, ansible_mounts, expect_chunks):
         }],
     ),
     (
-        ['oo_nodes_to_config'],
+        ['nodes'],
         0,
         [{
             'mount': '/',
@@ -68,7 +68,7 @@ def test_cannot_determine_available_disk(desc, ansible_mounts, expect_chunks):
         }],
     ),
     (
-        ['oo_etcd_to_config'],
+        ['etcd'],
         0,
         [{
             'mount': '/',
@@ -76,7 +76,7 @@ def test_cannot_determine_available_disk(desc, ansible_mounts, expect_chunks):
         }],
     ),
     (
-        ['oo_etcd_to_config'],
+        ['etcd'],
         1,  # configure lower threshold
         [{
             'mount': '/',
@@ -84,7 +84,7 @@ def test_cannot_determine_available_disk(desc, ansible_mounts, expect_chunks):
         }],
     ),
     (
-        ['oo_etcd_to_config'],
+        ['etcd'],
         0,
         [{
             # not enough space on / ...
@@ -122,16 +122,15 @@ def test_succeeds_with_recommended_disk_space(group_names, configured_min, ansib
         ansible_mounts=ansible_mounts,
     )
 
-    check = DiskAvailability(fake_execute_module, task_vars)
-    check.run()
+    result = DiskAvailability(fake_execute_module, task_vars).run()
 
-    assert not check.failures
+    assert not result.get('failed', False)
 
 
 @pytest.mark.parametrize('name,group_names,configured_min,ansible_mounts,expect_chunks', [
     (
         'test with no space available',
-        ['oo_masters_to_config'],
+        ['masters'],
         0,
         [{
             'mount': '/',
@@ -141,7 +140,7 @@ def test_succeeds_with_recommended_disk_space(group_names, configured_min, ansib
     ),
     (
         'test with a higher configured required value',
-        ['oo_masters_to_config'],
+        ['masters'],
         100,  # set a higher threshold
         [{
             'mount': '/',
@@ -151,7 +150,7 @@ def test_succeeds_with_recommended_disk_space(group_names, configured_min, ansib
     ),
     (
         'test with 1GB available, but "0" GB space requirement',
-        ['oo_nodes_to_config'],
+        ['nodes'],
         0,
         [{
             'mount': '/',
@@ -161,7 +160,7 @@ def test_succeeds_with_recommended_disk_space(group_names, configured_min, ansib
     ),
     (
         'test with no space available, but "0" GB space requirement',
-        ['oo_etcd_to_config'],
+        ['etcd'],
         0,
         [{
             'mount': '/',
@@ -171,7 +170,7 @@ def test_succeeds_with_recommended_disk_space(group_names, configured_min, ansib
     ),
     (
         'test with enough space for a node, but not for a master',
-        ['oo_nodes_to_config', 'oo_masters_to_config'],
+        ['nodes', 'masters'],
         0,
         [{
             'mount': '/',
@@ -181,7 +180,7 @@ def test_succeeds_with_recommended_disk_space(group_names, configured_min, ansib
     ),
     (
         'test failure with enough space on "/", but not enough on "/var"',
-        ['oo_etcd_to_config'],
+        ['etcd'],
         0,
         [{
             # enough space on / ...
@@ -202,18 +201,17 @@ def test_fails_with_insufficient_disk_space(name, group_names, configured_min, a
         ansible_mounts=ansible_mounts,
     )
 
-    check = DiskAvailability(fake_execute_module, task_vars)
-    check.run()
+    result = DiskAvailability(fake_execute_module, task_vars).run()
 
-    assert check.failures
+    assert result['failed']
     for chunk in 'below recommended'.split() + expect_chunks:
-        assert chunk in str(check.failures[0])
+        assert chunk in result.get('msg', '')
 
 
 @pytest.mark.parametrize('name,group_names,context,ansible_mounts,failed,extra_words', [
     (
         'test without enough space for master under "upgrade" context',
-        ['oo_nodes_to_config', 'oo_masters_to_config'],
+        ['nodes', 'masters'],
         "upgrade",
         [{
             'mount': '/',
@@ -225,7 +223,7 @@ def test_fails_with_insufficient_disk_space(name, group_names, configured_min, a
     ),
     (
         'test with enough space for master under "upgrade" context',
-        ['oo_nodes_to_config', 'oo_masters_to_config'],
+        ['nodes', 'masters'],
         "upgrade",
         [{
             'mount': '/',
@@ -237,7 +235,7 @@ def test_fails_with_insufficient_disk_space(name, group_names, configured_min, a
     ),
     (
         'test with not enough space for master, and non-upgrade context',
-        ['oo_nodes_to_config', 'oo_masters_to_config'],
+        ['nodes', 'masters'],
         "health",
         [{
             'mount': '/',
@@ -257,11 +255,11 @@ def test_min_required_space_changes_with_upgrade_context(name, group_names, cont
     )
 
     check = DiskAvailability(fake_execute_module, task_vars)
-    check.run()
+    result = check.run()
 
-    assert bool(check.failures) == failed
+    assert result.get("failed", False) == failed
     for word in extra_words:
-        assert word in str(check.failures[0])
+        assert word in result.get('msg', '')
 
 
 def fake_execute_module(*args):

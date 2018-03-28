@@ -14,16 +14,6 @@
     - templates
     - ds
 
-# return all persistent volume claims as well if purge is set
-- name: delete logging pvc objects
-  oc_obj:
-    state: absent
-    kind: pvc
-    namespace: "{{ openshift_logging_namespace }}"
-    selector: "logging-infra"
-  when:
-    - openshift_logging_purge_logging | default(false) | bool
-
 # delete the oauthclient
 - name: delete oauthclient kibana-proxy
   oc_obj:
@@ -92,7 +82,6 @@
   with_items:
     - rolebinding-reader
     - daemonset-admin
-    - prometheus-metrics-viewer
 
 # delete our configmaps
 - name: delete configmaps
@@ -109,14 +98,14 @@
 
 # remove annotations added by logging
 - command: >
-    {{ openshift_client_binary }}
+    {{ openshift.common.client_binary }}
     --config={{ openshift.common.config_base }}/master/admin.kubeconfig
     get namespaces -o name {{ __default_logging_ops_projects | join(' ') }}
   register: __logging_ops_projects
 
 - name: Remove Annotation of Operations Projects
   command: >
-    {{ openshift_client_binary }}
+    {{ openshift.common.client_binary }}
     --config={{ openshift.common.config_base }}/master/admin.kubeconfig
     annotate {{ project }} openshift.io/logging.ui.hostname-
   with_items: "{{ __logging_ops_projects.stdout_lines }}"
@@ -124,9 +113,3 @@
     loop_var: project
   when:
     - __logging_ops_projects.stderr | length == 0
-
-## EventRouter
-- include_role:
-    name: openshift_logging_eventrouter
-  when:
-    not openshift_logging_install_eventrouter | default(false) | bool

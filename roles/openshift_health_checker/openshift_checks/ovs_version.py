@@ -16,8 +16,7 @@ class OvsVersion(NotContainerizedMixin, OpenShiftCheck):
     tags = ["health"]
 
     openshift_to_ovs_version = {
-        "3.7": ["2.6", "2.7", "2.8"],
-        "3.6": ["2.6", "2.7", "2.8"],
+        "3.6": ["2.6", "2.7"],
         "3.5": ["2.6", "2.7"],
         "3.4": "2.4",
     }
@@ -25,7 +24,7 @@ class OvsVersion(NotContainerizedMixin, OpenShiftCheck):
     def is_active(self):
         """Skip hosts that do not have package requirements."""
         group_names = self.get_var("group_names", default=[])
-        master_or_node = 'oo_masters_to_config' in group_names or 'oo_nodes_to_config' in group_names
+        master_or_node = 'masters' in group_names or 'nodes' in group_names
         return super(OvsVersion, self).is_active() and master_or_node
 
     def run(self):

@@ -860,7 +860,7 @@ class Yedit(object):  # pragma: no cover
                 yamlfile.yaml_dict = content
 
             if params['key']:
-                rval = yamlfile.get(params['key'])
+                rval = yamlfile.get(params['key']) or {}
 
             return {'changed': False, 'result': rval, 'state': state}
 
@@ -1559,7 +1559,6 @@ class ServiceConfig(object):
                  sname,
                  namespace,
                  ports,
-                 annotations=None,
                  selector=None,
                  labels=None,
                  cluster_ip=None,
@@ -1571,7 +1570,6 @@ class ServiceConfig(object):
         self.name = sname
         self.namespace = namespace
         self.ports = ports
-        self.annotations = annotations
         self.selector = selector
         self.labels = labels
         self.cluster_ip = cluster_ip
@@ -1594,9 +1592,6 @@ class ServiceConfig(object):
             self.data['metadata']['labels'] = {}
             for lab, lab_value in self.labels.items():
                 self.data['metadata']['labels'][lab] = lab_value
-        if self.annotations:
-            self.data['metadata']['annotations'] = self.annotations
-
         self.data['spec'] = {}
 
         if self.ports:
@@ -2235,15 +2230,13 @@ class SecretConfig(object):
                  namespace,
                  kubeconfig,
                  secrets=None,
-                 stype=None,
-                 annotations=None):
+                 stype=None):
         ''' constructor for handling secret options '''
         self.kubeconfig = kubeconfig
         self.name = sname
         self.type = stype
         self.namespace = namespace
         self.secrets = secrets
-        self.annotations = annotations
         self.data = {}
 
         self.create_dict()
@@ -2260,8 +2253,6 @@ class SecretConfig(object):
         if self.secrets:
             for key, value in self.secrets.items():
                 self.data['data'][key] = value
-        if self.annotations:
-            self.data['metadata']['annotations'] = self.annotations
 
 # pylint: disable=too-many-instance-attributes
 class Secret(Yedit):
@@ -3159,14 +3150,14 @@ def main():
             external_host_insecure=dict(default=False, type='bool'),
             external_host_partition_path=dict(default=None, type='str'),
             external_host_username=dict(default=None, type='str'),
-            external_host_password=dict(default=None, type='str', no_log=True),
-            external_host_private_key=dict(default=None, type='str', no_log=True),
+            external_host_password=dict(default=None, type='str'),
+            external_host_private_key=dict(default=None, type='str'),
             # Metrics
             expose_metrics=dict(default=False, type='bool'),
             metrics_image=dict(default=None, type='str'),
             # Stats
             stats_user=dict(default=None, type='str'),
-            stats_password=dict(default=None, type='str', no_log=True),
+            stats_password=dict(default=None, type='str'),
             stats_port=dict(default=1936, type='int'),
             # extra
             cacert_file=dict(default=None, type='str'),

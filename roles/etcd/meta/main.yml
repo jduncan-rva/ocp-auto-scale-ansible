@@ -17,5 +17,11 @@ galaxy_info:
   - system
 dependencies:
 - role: lib_openshift
-- role: lib_utils
-- role: openshift_facts
+- role: os_firewall
+  os_firewall_allow:
+  - service: etcd
+    port: "{{etcd_client_port}}/tcp"
+  - service: etcd peering
+    port: "{{ etcd_peer_port }}/tcp"
+- role: etcd_server_certificates
+- role: etcd_common

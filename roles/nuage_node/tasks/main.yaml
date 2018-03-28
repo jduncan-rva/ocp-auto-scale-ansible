@@ -1,18 +1,24 @@
 ---
-- name: Set the Nuage plugin openshift directory fact for Atomic hosts
-  set_fact:
-    vsp_openshift_dir: /var/usr/share/vsp-openshift
-  when: openshift_is_atomic | bool
+- name: Install Nuage VRS
+  become: yes
+  yum: name={{ vrs_rpm }} state=present
 
-- name: Set the Nuage CNI binary directory fact for Atomic hosts
-  set_fact:
-    cni_bin_dir: /var/opt/cni/bin/
-  when: openshift_is_atomic | bool
+- name: Set the uplink interface
+  become: yes
+  lineinfile: dest={{ vrs_config }} regexp=^NETWORK_UPLINK_INTF line='NETWORK_UPLINK_INTF={{ uplink_interface }}'
 
-- name: Set the Nuage plugin certs directory fact for Atomic hosts
-  set_fact:
-    nuage_plugin_crt_dir: /var/usr/share/vsp-openshift
-  when: openshift_is_atomic | bool
+- name: Set the Active Controller
+  become: yes
+  lineinfile: dest={{ vrs_config }} regexp=^ACTIVE_CONTROLLER line='ACTIVE_CONTROLLER={{ vsc_active_ip }}'
+
+- name: Set the Standby Controller
+  become: yes
+  lineinfile: dest={{ vrs_config }} regexp=^STANDBY_CONTROLLER line='STANDBY_CONTROLLER={{ vsc_standby_ip }}'
+  when: vsc_standby_ip is defined
+
+- name: Install plugin rpm
+  become: yes
+  yum: name={{ plugin_rpm }} state=present
 
 - name: Assure CNI conf dir exists
   become: yes
@@ -21,6 +27,13 @@
 - name: Assures Openshift CNI bin dir exists
   become: yes
   file: path="{{ cni_bin_dir }}" state=directory
+
+- name: Install CNI loopback plugin
+  become: yes
+  copy:
+    src: "{{ k8s_cni_loopback_plugin }}"
+    dest: "{{ cni_bin_dir }}/{{ k8s_cni_loopback_plugin | basename }}"
+    mode: 0755
 
 - name: Copy the certificates and keys
   become: yes
@@ -31,20 +44,13 @@
     - nuage.key
     - nuage.kubeconfig
 
-- include_tasks: certificates.yml
+- include: certificates.yml
 
-- name: Add additional Docker mounts for Nuage for atomic hosts
+- name: Set the vsp-openshift.yaml
   become: yes
-  lineinfile: dest="{{ openshift_atomic_node_config_file }}" line="{{ nuage_atomic_docker_additional_mounts }}"
-  when: openshift_is_atomic | bool
-
-- name: Restart node services
-  command: /bin/true
+  template: src=vsp-openshift.j2 dest={{ vsp_openshift_yaml }} owner=root mode=0644
   notify:
+    - restart vrs
     - restart node
-  ignore_errors: true
 
-- include_tasks: iptables.yml
-
-- name: setup firewall
-  import_tasks: firewall.yml
+- include: iptables.yml

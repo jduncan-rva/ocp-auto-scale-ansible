@@ -90,12 +90,6 @@ options:
     required: false
     default: str
     aliases: []
-  labels:
-    description:
-    - The labels to apply on the route
-    required: false
-    default: None
-    aliases: []
   tls_termination:
     description:
     - The options for termination. e.g. reencrypt
@@ -775,7 +769,7 @@ class Yedit(object):  # pragma: no cover
                 yamlfile.yaml_dict = content
 
             if params['key']:
-                rval = yamlfile.get(params['key'])
+                rval = yamlfile.get(params['key']) or {}
 
             return {'changed': False, 'result': rval, 'state': state}
 
@@ -1475,7 +1469,6 @@ class RouteConfig(object):
                  sname,
                  namespace,
                  kubeconfig,
-                 labels=None,
                  destcacert=None,
                  cacert=None,
                  cert=None,
@@ -1490,7 +1483,6 @@ class RouteConfig(object):
         self.kubeconfig = kubeconfig
         self.name = sname
         self.namespace = namespace
-        self.labels = labels
         self.host = host
         self.tls_termination = tls_termination
         self.destcacert = destcacert
@@ -1516,8 +1508,6 @@ class RouteConfig(object):
         self.data['metadata'] = {}
         self.data['metadata']['name'] = self.name
         self.data['metadata']['namespace'] = self.namespace
-        if self.labels:
-            self.data['metadata']['labels'] = self.labels
         self.data['spec'] = {}
 
         self.data['spec']['host'] = self.host
@@ -1675,6 +1665,9 @@ class OCRoute(OpenShiftCLI):
     @staticmethod
     def get_cert_data(path, content):
         '''get the data for a particular value'''
+        if not path and not content:
+            return None
+
         rval = None
         if path and os.path.exists(path) and os.access(path, os.R_OK):
             rval = open(path).read()
@@ -1713,19 +1706,18 @@ class OCRoute(OpenShiftCLI):
         if params['tls_termination'] and params['tls_termination'].lower() != 'passthrough':  # E501
 
             for key, option in files.items():
-                if not option['path'] and not option['content']:
+                if key == 'destcacert' and params['tls_termination'] != 'reencrypt':
                     continue
 
                 option['value'] = OCRoute.get_cert_data(option['path'], option['content'])  # E501
 
                 if not option['value']:
                     return {'failed': True,
-                            'msg': 'Verify that you pass a correct value for %s' % key}
+                            'msg': 'Verify that you pass a value for %s' % key}
 
         rconfig = RouteConfig(params['name'],
                               params['namespace'],
                               params['kubeconfig'],
-                              params['labels'],
                               files['destcacert']['value'],
                               files['cacert']['value'],
                               files['cert']['value'],
@@ -1830,7 +1822,6 @@ def main():
             state=dict(default='present', type='str',
                        choices=['present', 'absent', 'list']),
             debug=dict(default=False, type='bool'),
-            labels=dict(default=None, type='dict'),
             name=dict(default=None, required=True, type='str'),
             namespace=dict(default=None, required=True, type='str'),
             tls_termination=dict(default=None, type='str'),

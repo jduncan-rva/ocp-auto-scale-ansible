@@ -729,7 +729,7 @@ class Yedit(object):  # pragma: no cover
                 yamlfile.yaml_dict = content
 
             if params['key']:
-                rval = yamlfile.get(params['key'])
+                rval = yamlfile.get(params['key']) or {}
 
             return {'changed': False, 'result': rval, 'state': state}
 
@@ -1426,7 +1426,7 @@ class StorageClassConfig(object):
     # pylint: disable=too-many-arguments
     def __init__(self,
                  name,
-                 provisioner,
+                 provisioner=None,
                  parameters=None,
                  annotations=None,
                  default_storage_class="false",
@@ -1458,7 +1458,10 @@ class StorageClassConfig(object):
         self.data['metadata']['annotations']['storageclass.beta.kubernetes.io/is-default-class'] = \
                 self.default_storage_class
 
-        self.data['provisioner'] = self.provisioner
+        if self.provisioner is None:
+            self.data['provisioner'] = 'kubernetes.io/aws-ebs'
+        else:
+            self.data['provisioner'] = self.provisioner
 
         self.data['parameters'] = {}
         if self.parameters is not None:
@@ -1664,7 +1667,7 @@ def main():
             name=dict(default=None, type='str'),
             annotations=dict(default=None, type='dict'),
             parameters=dict(default=None, type='dict'),
-            provisioner=dict(required=True, type='str'),
+            provisioner=dict(default='aws-ebs', type='str', choices=['aws-ebs', 'gce-pd', 'glusterfs', 'cinder']),
             api_version=dict(default='v1', type='str'),
             default_storage_class=dict(default="false", type='str'),
         ),

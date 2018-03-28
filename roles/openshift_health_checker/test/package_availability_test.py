@@ -3,53 +3,53 @@ import pytest
 from openshift_checks.package_availability import PackageAvailability
 
 
-@pytest.mark.parametrize('pkg_mgr,openshift_is_containerized,is_active', [
+@pytest.mark.parametrize('pkg_mgr,is_containerized,is_active', [
     ('yum', False, True),
     ('yum', True, False),
     ('dnf', True, False),
     ('dnf', False, False),
 ])
-def test_is_active(pkg_mgr, openshift_is_containerized, is_active):
+def test_is_active(pkg_mgr, is_containerized, is_active):
     task_vars = dict(
         ansible_pkg_mgr=pkg_mgr,
-        openshift_is_containerized=openshift_is_containerized,
+        openshift=dict(common=dict(is_containerized=is_containerized)),
     )
     assert PackageAvailability(None, task_vars).is_active() == is_active
 
 
 @pytest.mark.parametrize('task_vars,must_have_packages,must_not_have_packages', [
     (
-        dict(openshift_service_type='origin'),
+        dict(openshift=dict(common=dict(service_type='openshift'))),
         set(),
         set(['openshift-master', 'openshift-node']),
     ),
     (
         dict(
-            openshift_service_type='origin',
-            group_names=['oo_masters_to_config'],
+            openshift=dict(common=dict(service_type='origin')),
+            group_names=['masters'],
         ),
         set(['origin-master']),
         set(['origin-node']),
     ),
     (
         dict(
-            openshift_service_type='atomic-openshift',
-            group_names=['oo_nodes_to_config'],
+            openshift=dict(common=dict(service_type='atomic-openshift')),
+            group_names=['nodes'],
         ),
         set(['atomic-openshift-node']),
         set(['atomic-openshift-master']),
     ),
     (
         dict(
-            openshift_service_type='atomic-openshift',
-            group_names=['oo_masters_to_config', 'oo_nodes_to_config'],
+            openshift=dict(common=dict(service_type='atomic-openshift')),
+            group_names=['masters', 'nodes'],
         ),
         set(['atomic-openshift-master', 'atomic-openshift-node']),
         set(),
     ),
 ])
 def test_package_availability(task_vars, must_have_packages, must_not_have_packages):
-    return_value = {}
+    return_value = object()
 
     def execute_module(module_name=None, module_args=None, *_):
         assert module_name == 'check_yum_update'

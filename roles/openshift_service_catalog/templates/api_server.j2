@@ -24,7 +24,6 @@ spec:
 {% endfor %}
       containers:
       - args:
-        - apiserver
         - --storage-type
         - etcd
         - --secure-port
@@ -42,11 +41,9 @@ spec:
         - --cors-allowed-origins
         - {{ cors_allowed_origin }}
         - --admission-control
-        - KubernetesNamespaceLifecycle,DefaultServicePlan,ServiceBindingsLifecycle,ServicePlanChangeValidator,BrokerAuthSarCheck
-        - --feature-gates
-        - OriginatingIdentity=true
+        - "KubernetesNamespaceLifecycle"
         image: {{ openshift_service_catalog_image_prefix }}service-catalog:{{ openshift_service_catalog_image_version }}
-        command: ["/usr/bin/service-catalog"]
+        command: ["/usr/bin/apiserver"]
         imagePullPolicy: Always
         name: apiserver
         ports:
