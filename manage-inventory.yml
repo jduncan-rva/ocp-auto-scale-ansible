@@ -97,7 +97,7 @@
       - cleanup
 
   - name: commit changes to repo
-    shell: git add -A && git commit -m "updated by Ansible at $(date +%Y%m%d%H%M%S)"
+    shell: git config user.name "Tower User" && git config user.email "Tower@tower.com" && git add -A && git commit -m "updated by Ansible at $(date +%Y%m%d%H%M%S)"
     args:
       chdir: "{{ git_checkout_path }}"
     tags:
