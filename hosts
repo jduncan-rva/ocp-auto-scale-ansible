@@ -2,6 +2,7 @@
 masters
 nodes
 etcd
+new_nodes
 
 
 [OSEv3:vars]
@@ -21,3 +22,7 @@ openshift_disable_check=disk_availability,memory_availability,docker_storage,pac
 192.168.122.120 openshift_hostname=ip-192-168-122-120.ec2.internal openshift_public_hostname=ec2-34-229-55-231.compute-1.amazonaws.com  openshift_ip=192.168.122.120 openshift_public_ip=34.229.55.231 node=True storage=True master=True openshift_schedulable=False
 192.168.122.206 openshift_hostname=ip-192-168-122-206.ec2.internal openshift_public_hostname=ec2-54-89-30-38.compute-1.amazonaws.com openshift_ip=ec2-54-89-30-38.compute-1.amazonaws.com opensift_public_ip=54.89.30.38 node=True openshift_node_labels="{'region': 'infra'}" openshift_schedulable=True
 
+# BEGIN ANSIBLE MANAGED BLOCK
+[new_nodes]
+54.209.59.183 openshift_schedulable=true
+# END ANSIBLE MANAGED BLOCK
